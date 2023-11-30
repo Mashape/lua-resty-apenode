@@ -25,8 +25,12 @@ jobs:
     - name: Detect current version of NGX_WASM_MODULE in .requirements
       id: check-kong
       run: |
-        SHA=$(sed -nre 's/^NGX_WASM_MODULE=([^ ]+) .*/\1/p' < .requirements)
+        SHA=$(sed -nre 's/^NGX_WASM_MODULE=([^ ]+).*/\1/p' < .requirements)
         echo "sha=$SHA" | tee -a "$GITHUB_OUTPUT"
+        if [[ -z ${SHA:-} ]]; then
+          echo "fatal: failed to parse ngx_wasm_module sha from .requirements file"
+          exit 1
+        fi
 
     - name: Check Kong/ngx_wasm_module HEAD
       id: check-repo
@@ -35,6 +39,10 @@ jobs:
       run: |
         SHA=$(gh api repos/Kong/ngx_wasm_module/commits/main --jq '.sha')
         echo "sha=$SHA" | tee -a "$GITHUB_OUTPUT"
+        if [[ -z ${SHA:-} ]]; then
+          echo "fatal: failed to fetch sha from Kong/ngx_wasm_module repo"
+          exit 1
+        fi
 
     - name: Update .requirements and create a pull request
       if: steps.check-kong.outputs.sha != steps.check-repo.outputs.sha
@@ -44,16 +52,16 @@ jobs:
         TO: ${{ steps.check-repo.outputs.sha }}
       run: |
         set -x
+
+        # masquerade as team-gateway-bot for the purposes of this commit/PR
+        git config --global user.email "team-gateway@konghq.com"
+        git config --global user.name "team-gateway-bot"
+
         gh auth status
         gh auth setup-git
 
-        # masquerade as dependabot for the purposes of this commit/PR
-        git config --global user.email \
-          "49699333+dependabot[bot]@users.noreply.github.com"
-        git config --global user.name "dependabot[bot]"
-
         readonly BRANCH=chore/deps-bump-ngx-wasm-module
-        if gh api repos/Kong/kong/branches/"$BRANCH"; then
+        if gh api repos/Kong/kong/branches/"$BRANCH" >/dev/null; then
           echo "branch ($BRANCH) already exists, exiting"
           exit  1
         fi
@@ -124,13 +132,22 @@ jobs:
             < commits.json
 
           printf '\n\n'
-          printf '**IMPORTANT: Remember to scan this commit log for updates '
-          printf 'to Wasmtime/V8/Wasmer and update `.requirements` manually '
-          printf 'as needed**\n'
+          printf '## TODO'
+          printf '\n\n'
+          printf -- '- [ ] scan this commit log for updates to Wasmtime/V8/Wasmer '
+          printf          'and update `.requirements` as needed'
+          printf '\n'
+          printf -- '- [ ] ensure the full integration test suite has been triggered '
+          printf          '(this can be done by pushing an empty commit to the '
+          printf          'branch from an authorized github account)'
+          printf '\n'
         } > body.md
 
         gh pr create \
+          --draft \
+          --assignee "flrgh" \
           --base master \
           --head "$BRANCH" \
           --title "$HEADER" \
+          --label "cherry-pick kong-ee" \
           --body-file body.md
