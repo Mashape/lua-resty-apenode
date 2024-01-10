@@ -131,16 +131,22 @@ jobs:
             '"* [`\(.sha)`](\(.url)) - \(.message)"' \
             < commits.json
 
-          printf '\n\n'
-          printf '## TODO'
-          printf '\n\n'
-          printf -- '- [ ] scan this commit log for updates to Wasmtime/V8/Wasmer '
-          printf          'and update `.requirements` as needed'
-          printf '\n'
-          printf -- '- [ ] ensure the full integration test suite has been triggered '
-          printf          '(this can be done by pushing an empty commit to the '
-          printf          'branch from an authorized github account)'
-          printf '\n'
+          cat << 'EOF'
+
+        ## TODO
+
+        - [ ] scan this commit log for updates to Wasmtime/V8/Wasmer and update `.requirements` as needed
+        - [ ] ensure the full integration test suite has been triggered. This can be accomplished by pushing an empty commit to the branch from an authorized github account):
+          ```shell
+          cd path/to/kong/repo
+          git fetch
+          git switch chore/deps-bump-ngx-wasm-module
+          git pull -r
+          git commit --allow-empty -m "chore(*): empty commit, please squash"
+          git push origin HEAD
+          ```
+        EOF
+
         } > body.md
 
         gh pr create \
@@ -150,4 +156,5 @@ jobs:
           --head "$BRANCH" \
           --title "$HEADER" \
           --label "cherry-pick kong-ee" \
+          --label "core/wasm" \
           --body-file body.md
