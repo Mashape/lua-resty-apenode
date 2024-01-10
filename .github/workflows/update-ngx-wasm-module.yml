@@ -136,7 +136,7 @@ jobs:
         ## TODO
 
         - [ ] scan this commit log for updates to Wasmtime/V8/Wasmer and update `.requirements` as needed
-        - [ ] ensure the full integration test suite has been triggered. This can be accomplished by pushing an empty commit to the branch from an authorized github account):
+        - [ ] ensure the full integration test suite has been triggered. This can be accomplished by pushing an empty commit to the branch from an authorized github account:
           ```shell
           cd path/to/kong/repo
           git fetch
