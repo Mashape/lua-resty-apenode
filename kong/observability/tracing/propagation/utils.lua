@@ -18,6 +18,7 @@ local FORMATS = {
   DATADOG   = "datadog",
   AWS       = "aws",
   GCP       = "gcp",
+  INSTANA   = "instana",
 }
 
 local function hex_to_char(c)
