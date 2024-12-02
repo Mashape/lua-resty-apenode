@@ -90,7 +90,10 @@ for _, strategy in helpers.each_strategy() do
       add_filter_to_service(bp, "tests", service)
       add_filter_to_service(bp, "tests", service2)
 
-      bp.plugins:insert({ name = "prometheus" })
+      assert(bp.plugins:insert({
+        name = "prometheus",
+        config = { wasm_metrics = true },
+      }))
 
       assert(helpers.start_kong({
         nginx_conf = "spec/fixtures/custom_nginx.template",

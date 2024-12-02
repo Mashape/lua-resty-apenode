@@ -228,4 +228,11 @@ return {
       "queue.concurrency_limit",
     },
   },
+
+  -- Any dataplane older than 3.10.0
+  [3010000000] = {
+    prometheus = {
+      "wasm_metrics",
+    },
+  },
 }
