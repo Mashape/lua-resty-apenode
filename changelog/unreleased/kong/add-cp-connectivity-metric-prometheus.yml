@@ -1,0 +1,4 @@
+message: |
+  **Prometheus**: Added gauge to expose connectivity state to controlplane.
+type: feature
+scope: Plugin

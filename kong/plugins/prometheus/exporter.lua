@@ -10,6 +10,7 @@ local lower = string.lower
 local ngx_timer_pending_count = ngx.timer.pending_count
 local ngx_timer_running_count = ngx.timer.running_count
 local get_all_upstreams = balancer.get_all_upstreams
+
 if not balancer.get_all_upstreams then -- API changed since after Kong 2.5
   get_all_upstreams = require("kong.runloop.balancer.upstreams").get_all_upstreams
 end
@@ -65,6 +66,14 @@ local function init()
                                           "0 is unreachable",
                                           nil,
                                           prometheus.LOCAL_STORAGE)
+  if role == "data_plane" then
+    metrics.cp_reachable = prometheus:gauge("control_plane_reachable",
+                                          "Control plane reachable from gateway, " ..
+                                          "0 is unreachable",
+                                          nil,
+                                          prometheus.LOCAL_STORAGE)
+  end
+
   metrics.node_info = prometheus:gauge("node_info",
                                        "Kong Node metadata information",
                                        {"node_id", "version"},
@@ -448,6 +457,15 @@ local function metric_data(write_fn)
       metrics.db_reachable:set(0)
       kong.log.err("prometheus: failed to reach database while processing",
                   "/metrics endpoint: ", err)
+    end
+
+    if role == "data_plane" then
+      local cp_reachable = ngx.shared.kong:get("control_plane_reachable")
+      if cp_reachable then
+        metrics.cp_reachable:set(1)
+      else
+        metrics.cp_reachable:set(0)
+      end
     end
   end
 
