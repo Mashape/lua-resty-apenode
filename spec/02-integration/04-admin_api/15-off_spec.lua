@@ -2323,6 +2323,115 @@ R6InCcH2Wh8wSeY5AuDXvu2tv9g/PW9wIJmPuKSHMA==
     }, post_config(input))
   end)
 
+  it("snis in certificates without certificate", function()
+    local res = assert(client:send {
+      method = "POST",
+      path = "/config?flatten_errors=1",
+      body = {
+        _format_version = "1.1",
+        consumers = {
+          {
+            username = "x",
+            basicauth_credentials = {
+              username = "x",
+              password = "x",
+            }
+          }
+        },
+        certificates = {
+          {
+            cert = ssl_fixtures.cert,
+            id = "d83994d2-c24c-4315-b431-ee76b6611dcb",
+            key = ssl_fixtures.key,
+            snis = {
+              {
+                name = "foo.example",
+                id = "1c6e83b7-c9ad-40ac-94e8-52f5ee7bde44",
+              },
+            }
+          }
+        },
+      },
+      headers = {
+        ["Content-Type"] = "application/json"
+      }
+    })
+    
+    local body = assert.response(res).has.status(400)
+    local entities = cjson.decode(body)
+    assert.equals("snis:required field missing:certificate", entities.flattened_errors[1].errors[1].message)
+  end)
+
+  it("flatten_errors1 when conflicting inputs", function()
+    local conflicting_input = {
+      _format_version = "3.0",
+      consumers = {
+        {
+          username = "username1",
+          tags = {
+            "k8s-group:configuration.konghq.com",
+            "k8s-version:v1",
+            "k8s-kind:KongConsumer",
+            "k8s-namespace:default",
+            "k8s-name:consumer1"
+          },
+          basicauth_credentials = {
+            {
+              username = "username1",
+              password = "password",
+              tags = {
+                "k8s-group:",
+                "k8s-version:v1",
+                "k8s-kind:Secret",
+                "k8s-namespace:default",
+                "k8s-name:basic-1"
+              }
+            },
+            {
+              username = "username1",
+              password = "password",
+              tags = {
+                "k8s-group:",
+                "k8s-version:v1",
+                "k8s-kind:Secret",
+                "k8s-namespace:default",
+                "k8s-name:basic-2"
+              }
+            },
+          }
+        }
+      }
+    }
+    validate({
+      {
+        entity = {
+          username = "username1",
+          password = "password",
+          tags = {
+            "k8s-group:",
+            "k8s-version:v1",
+            "k8s-kind:Secret",
+            "k8s-namespace:default",
+            "k8s-name:basic-2"
+          }
+        },
+        entity_tags = {
+          "k8s-group:",
+          "k8s-version:v1",
+          "k8s-kind:Secret",
+          "k8s-namespace:default",
+          "k8s-name:basic-2"
+        },
+        entity_type = "basicauth_credential",
+        errors = { {
+          message = "uniqueness violation: 'basicauth_credentials' entity with username set to 'username1' already declared",
+          type = "entity",
+          }
+        }
+      },
+    }, post_config(conflicting_input))
+  end)
+
   it("correctly handles nested entity errors", function()
     local consumers = {
       {
