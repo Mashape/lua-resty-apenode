@@ -529,3 +529,70 @@ describe("Plugin: prometheus (access) granular metrics switch", function()
 
 end)
 end
+
+describe("CP/DP connectivity state #", function ()
+  local status_client
+
+  local function get_metrics()
+    if not status_client then
+      status_client = helpers.http_client("127.0.0.1", tcp_status_port, 20000)
+      status_client.reopen = true -- retry on a closed connection
+    end
+
+    local res, err = status_client:get("/metrics")
+
+    assert.is_nil(err, "failed GET /metrics: " .. tostring(err))
+    return assert.res_status(200, res)
+  end
+
+  setup(function()
+    local bp = helpers.get_db_utils()
+
+    bp.plugins:insert {
+      protocols = { "http", "https", "grpc", "grpcs", "tcp", "tls" },
+      name = "prometheus",
+    }
+
+    assert(helpers.start_kong({
+      role = "control_plane",
+      prefix = "prom_cp",
+      cluster_cert = "spec/fixtures/kong_clustering.crt",
+      cluster_cert_key = "spec/fixtures/kong_clustering.key",
+      cluster_listen = "127.0.0.1:9005",
+      plugins = "bundled, prometheus",
+    }))
+
+    assert(helpers.start_kong({
+      role = "data_plane",
+      database = "off",
+      prefix = "prom_dp",
+      cluster_cert = "spec/fixtures/kong_clustering.crt",
+      cluster_cert_key = "spec/fixtures/kong_clustering.key",
+      cluster_control_plane = "127.0.0.1:9005",
+      proxy_listen = "0.0.0.0:9000",
+      worker_state_update_frequency = 1,
+      status_listen = "0.0.0.0:" .. tcp_status_port,
+      nginx_worker_processes = 1,
+      dedicated_config_processing = "on",
+      plugins = "bundled, prometheus",
+    }))
+    status_client = helpers.http_client("127.0.0.1", tcp_status_port, 20000)
+  end)
+
+  teardown(function()
+    if status_client then
+      status_client:close()
+    end
+
+    helpers.stop_kong("prom_dp")
+  end)
+
+  it("exposes controlplane connectivity status", function ()
+    local body = get_metrics()
+    assert.matches('kong_control_plane_reachable 1', body, nil, true)
+
+    helpers.stop_kong("prom_cp")
+    local body  = get_metrics()
+    assert.matches('kong_control_plane_reachable 0', body, nil, true)
+  end)
+end)
