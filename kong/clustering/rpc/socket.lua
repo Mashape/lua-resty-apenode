@@ -59,12 +59,37 @@ function _M:_get_next_id()
 end
 
 
+function _M:_report_error(payload_id, code, err)
+  local res, rpc_err = self.outgoing:push(
+    new_error(payload_id, code,  err)
+  )
+
+  if not res then
+    ngx_log(ngx_WARN, "[rpc] unable to push RPC call error: ", rpc_err)
+  end
+end
+
+
 function _M._dispatch(premature, self, cb, payload)
   if premature then
     return
   end
 
-  local res, err = cb(self.node_id, unpack(payload.params))
+  local res, except, err, trace
+  xpcall(
+    function() res, err = cb(self.node_id, unpack(payload.params)) end,
+    function(err)
+      except = err
+      trace = debug.traceback(nil, 2)
+    end
+  )
+
+  if except then
+    ngx_log(ngx_WARN, "[rpc] exception during callback: ", except, "\n", trace)
+
+    return self:_report_error(payload.id, jsonrpc.INTERNAL_ERROR, except)
+  end
+
   if not res then
     ngx_log(ngx_WARN, "[rpc] RPC callback failed: ", err)
 
@@ -73,13 +98,7 @@ function _M._dispatch(premature, self, cb, payload)
       return
     end
 
-    res, err = self.outgoing:push(new_error(payload.id, jsonrpc.SERVER_ERROR,
-                                            err))
-    if not res then
-      ngx_log(ngx_WARN, "[rpc] unable to push RPC call error: ", err)
-    end
-
-    return
+    return self:_report_error(payload.id, jsonrpc.SERVER_ERROR, err)
   end
 
   -- notification has no response
