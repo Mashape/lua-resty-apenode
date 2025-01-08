@@ -1,0 +1,3 @@
+message: "Fixed an issue where fetching admin api root path returns 500 server error"
+type: bugfix
+scope: Core
