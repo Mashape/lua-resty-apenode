@@ -739,3 +739,93 @@ GET /t
 opts.l1_serializer must be a function
 --- no_error_log
 [error]
+
+
+
+=== TEST 19: l1_serializer fails will not store the cached vaule in L2
+--- http_config eval: $::HttpConfig
+--- config
+    location = /t {
+        content_by_lua_block {
+            local dict = ngx.shared.cache_shm
+            local mlcache = require "kong.resty.mlcache"
+
+            local cache, err = mlcache.new("my_mlcache", "cache_shm", {
+                l1_serializer = function(s)
+                    error("cannot transform")
+                end,
+            })
+            if not cache then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+
+            local data, err = cache:get("key", nil, function() return "foo" end)
+            if not data then
+                ngx.say(err)
+            end
+            ngx.say(data)
+
+            local v, err = dict:get("my_mlcachekey")
+            if err then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+            ngx.say("no value in shm: ", v == nil )
+        }
+    }
+--- request
+GET /t
+--- response_body_like
+l1_serializer threw an error: .*?: cannot transform
+nil
+no value in shm: true
+--- no_error_log
+[error]
+
+
+
+=== TEST 20: l1_serializer fails will not store the cached vaule in L2 (L2 miss)
+--- http_config eval: $::HttpConfig
+--- config
+    location = /t {
+        content_by_lua_block {
+            local mlcache = require "kong.resty.mlcache"
+
+            local called = false
+            local cache, err = mlcache.new("my_mlcache", "cache_shm", {
+                l1_serializer = function(s)
+                    if not called then
+                        called = true
+                        error("cannot transform")
+                    end
+
+                    return string.format("transform(%q)", s)
+                end,
+            })
+            if not cache then
+                ngx.log(ngx.ERR, err)
+                return
+            end
+
+            local data, err = cache:get("key", nil, function() return "foo" end)
+            if not data then
+                ngx.say(err)
+            end
+            ngx.say(data)
+
+            local data, err = cache:get("key", nil, function() return "bar" end)
+            if not data then
+                ngx.say(err)
+            end
+            ngx.say(data)
+        }
+    }
+--- request
+GET /t
+--- response_body_like
+l1_serializer threw an error: .*?: cannot transform
+nil
+transform\("bar"\)
+--- no_error_log
+[error]
