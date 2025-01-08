@@ -207,21 +207,34 @@ end
 
 
 local function configure(configs)
-  -- everything disabled by default
   IS_PROMETHEUS_ENABLED = false
   export_upstream_health_metrics = false
+  local export_wasm_metrics = false
 
   if configs ~= nil then
     IS_PROMETHEUS_ENABLED = true
 
     for i = 1, #configs do
-      -- export upstream health metrics if any plugin has explicitly enabled them
+      -- `upstream_health_metrics` and `wasm_metrics` are global properties that
+      -- are disabled by default but will be enabled if any plugin instance has
+      -- explicitly enabled them
+
       if configs[i].upstream_health_metrics then
         export_upstream_health_metrics = true
+      end
+
+      if configs[i].wasm_metrics then
+        export_wasm_metrics = true
+      end
+
+      -- no need for further iteration since everyhing is enabled
+      if export_upstream_health_metrics and export_wasm_metrics then
         break
       end
     end
   end
+
+  wasm.set_enabled(export_wasm_metrics)
 end
 
 
