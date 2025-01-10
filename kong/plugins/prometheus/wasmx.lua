@@ -18,6 +18,7 @@ local _M = {}
 local FLUSH_EVERY = 100
 local GET_METRIC_OPTS = { prefix = false }
 
+local export_enabled = false
 
 local metrics_data_buf = buf_new()
 local labels_serialization_buf = buf_new()
@@ -181,7 +182,7 @@ end
 
 
 _M.metrics_data = function()
-  if not wasm.enabled() then
+  if not export_enabled or not wasm.enabled() then
     return
   end
 
@@ -230,5 +231,9 @@ _M.metrics_data = function()
   ngx_say(metrics_data_buf:get())
 end
 
+
+function _M.set_enabled(enabled)
+  export_enabled = enabled
+end
 
 return _M

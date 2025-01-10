@@ -206,7 +206,19 @@ end
 
 
 local function configure(configs)
-  IS_PROMETHEUS_ENABLED = configs ~= nil
+  IS_PROMETHEUS_ENABLED = false
+  wasm.set_enabled(false)
+
+  if configs ~= nil then
+    IS_PROMETHEUS_ENABLED = true
+
+    for i = 1, #configs do
+      if configs[i].wasm_metrics then
+        wasm.set_enabled(true)
+        break
+      end
+    end
+  end
 end
 
 

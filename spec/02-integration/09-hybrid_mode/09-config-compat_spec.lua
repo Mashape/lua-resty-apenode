@@ -1013,13 +1013,37 @@ describe("CP/DP config compat transformations #" .. strategy, function()
         }
         -- ]]
 
+        finally(function()
+          admin.plugins:remove({ id = prometheus.id })
+        end)
+
         local expected_prometheus_prior_38 = cycle_aware_deep_copy(prometheus)
         expected_prometheus_prior_38.config.ai_metrics = nil
+        expected_prometheus_prior_38.config.wasm_metrics = nil
 
         do_assert(uuid(), "3.7.0", expected_prometheus_prior_38)
+      end)
 
-        -- cleanup
-        admin.plugins:remove({ id = prometheus.id })
+      it("[prometheus] remove wasm_metrics property for versions below 3.9", function()
+        -- [[ 3.9.x ]] --
+        local prometheus = admin.plugins:insert {
+          name = "prometheus",
+          enabled = true,
+          config = {
+            wasm_metrics = true, -- becomes nil
+          },
+        }
+        -- ]]
+
+        finally(function()
+          admin.plugins:remove({ id = prometheus.id })
+        end)
+
+
+        local expected_prometheus_prior_39 = cycle_aware_deep_copy(prometheus)
+        expected_prometheus_prior_39.config.wasm_metrics = nil
+
+        do_assert(uuid(), "3.8.0", expected_prometheus_prior_39)
       end)
     end)
 
