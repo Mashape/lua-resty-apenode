@@ -67,9 +67,9 @@ local function init()
                                           nil,
                                           prometheus.LOCAL_STORAGE)
   if role == "data_plane" then
-    metrics.cp_reachable = prometheus:gauge("control_plane_reachable",
-                                          "Control plane reachable from gateway, " ..
-                                          "0 is unreachable",
+    metrics.cp_connected = prometheus:gauge("control_plane_connected",
+                                          "Kong connected to controlplane, " ..
+                                          "0 is unconnected",
                                           nil,
                                           prometheus.LOCAL_STORAGE)
   end
@@ -460,11 +460,11 @@ local function metric_data(write_fn)
     end
 
     if role == "data_plane" then
-      local cp_reachable = ngx.shared.kong:get("control_plane_reachable")
+      local cp_reachable = ngx.shared.kong:get("control_plane_connected")
       if cp_reachable then
-        metrics.cp_reachable:set(1)
+        metrics.cp_connected:set(1)
       else
-        metrics.cp_reachable:set(0)
+        metrics.cp_connected:set(0)
       end
     end
   end

@@ -589,10 +589,10 @@ describe("CP/DP connectivity state #", function ()
 
   it("exposes controlplane connectivity status", function ()
     local body = get_metrics()
-    assert.matches('kong_control_plane_reachable 1', body, nil, true)
+    assert.matches('kong_control_plane_connected 1', body, nil, true)
 
     helpers.stop_kong("prom_cp")
     local body  = get_metrics()
-    assert.matches('kong_control_plane_reachable 0', body, nil, true)
+    assert.matches('kong_control_plane_connected 0', body, nil, true)
   end)
 end)
