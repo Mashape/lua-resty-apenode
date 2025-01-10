@@ -117,9 +117,22 @@ describe("#wasm filters as plugins (#" .. strategy .. ")", function()
 
 
   lazy_setup(function()
+    assert(helpers.file.copy(FILTER_PATH .. "/tests.wasm",
+                             FILTER_PATH .. "/tests-01.wasm"))
+    assert(helpers.file.copy(FILTER_PATH .. "/tests.wasm",
+                             FILTER_PATH .. "/tests-02.wasm"))
+
     require("kong.runloop.wasm").enable({
       { name = "response_transformer",
         path = FILTER_PATH .. "/response_transformer.wasm",
+      },
+      {
+        name = "tests-01",
+        path = FILTER_PATH .. "/tests-01.wasm",
+      },
+      {
+        name = "tests-02",
+        path = FILTER_PATH .. "/tests-02.wasm",
       },
     })
 
@@ -130,14 +143,14 @@ describe("#wasm filters as plugins (#" .. strategy .. ")", function()
       "plugins",
     })
 
-    helpers.start_kong({
+    assert(helpers.start_kong({
       database = strategy,
       nginx_conf = "spec/fixtures/custom_nginx.template",
       nginx_main_worker_processes = "2",
       wasm = true,
-      wasm_filters = "response_transformer",
+      wasm_filters = "response_transformer,tests-01,tests-02",
       plugins = "response-transformer",
-    })
+    }))
 
     admin = helpers.admin_client()
     proxy = helpers.proxy_client()
@@ -154,6 +167,8 @@ describe("#wasm filters as plugins (#" .. strategy .. ")", function()
     end
 
     helpers.stop_kong()
+    helpers.file.delete(FILTER_PATH .. "/tests-01.wasm")
+    helpers.file.delete(FILTER_PATH .. "/tests-02.wasm")
   end)
 
   before_each(function()
@@ -229,7 +244,6 @@ describe("#wasm filters as plugins (#" .. strategy .. ")", function()
 
         local expected = 4
         assert.equals(expected, #json.data)
-        helpers.intercept(json.data)
         local found = 0
 
         for _, plugin in ipairs(json.data) do
@@ -337,6 +351,186 @@ describe("#wasm filters as plugins (#" .. strategy .. ")", function()
 
       assert.equals(filter_value, assert.response(res).has.header(FILTER_HEADER))
       assert.equals(fc_value, assert.response(res).has.header(FILTER_CHAIN_HEADER))
+    end)
+  end)
+
+  describe("order of execution", function()
+    it("filter plugins execute at the end of any existing filter chain", function()
+      local lua_plugin = {
+        name = "response-transformer",
+        route = { id = route.id },
+        config = {
+          add = {
+            headers = {
+              "X-Added-By-Lua-Plugin:1",
+              "X-Replace-Me:lua",
+              "X-Append-Me:lua",
+              "X-Remove-Me:lua",
+            },
+          }
+        }
+      }
+
+      local plugin = {
+        name = "response_transformer",
+        route = { id = route.id },
+        config = cjson.encode({
+          add = {
+            headers = {
+              "X-Added-First:plugin",
+              "X-Added-By-Filter-Plugin:1",
+              "X-Not-Removed-By-Filter-Chain:plugin",
+            },
+          },
+          append = {
+            headers = {
+              "X-Append-Me:plugin",
+            },
+          },
+          replace = {
+            headers = {
+              "X-Replace-Me:plugin",
+              "X-Replaced-By-Filter-Plugin:plugin",
+            },
+          },
+          remove = {
+            headers = {
+              "X-Remove-Me",
+              "X-Removed-By-Filter-Plugin",
+            },
+          },
+        }),
+      }
+
+      local res, header, assert_no_header
+      do
+        function header(name)
+          return assert.response(res).has.header(name)
+        end
+
+        function assert_no_header(name)
+          return assert.response(res).has.no.header(name)
+        end
+      end
+
+      create_plugin(plugin)
+      create_plugin(lua_plugin)
+
+      helpers.wait_for_all_config_update()
+      res = proxy:get("/status/200")
+      assert.response(res).has.status(200)
+
+      -- sanity
+      assert.equals("1", header("X-Added-By-Filter-Plugin"))
+      assert.equals("1", header("X-Added-By-Lua-Plugin"))
+      assert_no_header("X-Remove-Me")
+
+      assert.equals("plugin", header("X-Added-First"))
+
+      -- added by Lua plugin, filter plugin appends
+      assert.same({ "lua", "plugin" }, header("X-Append-Me"))
+
+      -- replaced last by filter plugin
+      assert.same("plugin", header("X-Replace-Me"))
+
+      -- not replaced, because it was not added
+      assert_no_header("X-Replaced-By-Filter-Plugin")
+
+      local filter_chain = {
+        route = { id = route.id },
+        filters = {
+          {
+            name = "response_transformer",
+            config = cjson.encode({
+              add = {
+                headers = {
+                  "X-Added-First:filter-chain",
+                  "X-Added-By-Filter-Chain:1",
+                  "X-Removed-By-Filter-Plugin:filter-chain",
+                  "X-Replaced-By-Filter-Plugin:filter-chain",
+                },
+              },
+              append = {
+                headers = {
+                  "X-Append-Me:filter-chain",
+                },
+              },
+              replace = {
+                headers = {
+                  "X-Replace-Me:filter-chain",
+                  "X-Replaced-By-Filter-Chain:filter-chain",
+                },
+              },
+              remove = {
+                headers = {
+                  "X-Not-Removed-By-Filter-Chain",
+                },
+              },
+            }),
+          }
+        }
+      }
+
+      create_filter_chain(filter_chain)
+      helpers.wait_for_all_config_update()
+      res = proxy:get("/status/200")
+      assert.response(res).has.status(200)
+
+      -- sanity
+      assert.equals("1", header("X-Added-By-Filter-Plugin"))
+      assert.equals("1", header("X-Added-By-Lua-Plugin"))
+      assert.equals("1", header("X-Added-By-Filter-Chain"))
+      assert_no_header("X-Remove-Me")
+
+      -- added first by the filter chain
+      assert.equals("filter-chain", header("X-Added-First"))
+
+      -- added by Lua, appended to by filter chain and filter plugin
+      assert.same({ "lua", "filter-chain", "plugin" }, header("X-Append-Me"))
+      -- added after the filter chain tried to remove it
+      assert.same("plugin", header("X-Not-Removed-By-Filter-Chain"))
+
+      -- replaced last by filter plugin
+      assert.same("plugin", header("X-Replace-Me"))
+
+      assert_no_header("X-Removed-By-Filter-Plugin")
+      assert.same("plugin", header("X-Replaced-By-Filter-Plugin"))
+    end)
+
+    it("filter plugins execute in a consistent order", function()
+      -- should always run first because `tests-01` < `tests-02`
+      local plugin_1 = {
+        name = "tests-01",
+        config = "name=first",
+        route = { id = route.id },
+      }
+
+      local plugin_2 = {
+        name = "tests-02",
+        config = "name=last",
+        route = { id = route.id },
+      }
+
+      for _, order_added in ipairs({
+        { plugin_1, plugin_2 },
+        { plugin_2, plugin_1 },
+      }) do
+        bp.plugins:truncate()
+
+        create_plugin(order_added[1])
+        create_plugin(order_added[2])
+
+        helpers.wait_for_all_config_update()
+        local res = proxy:get("/status/200", {
+          headers = {
+            ["X-PW-Phase"] = "request_headers",
+            ["X-PW-Test"] = "dump_config",
+          }
+        })
+
+        local body = assert.res_status(200, res)
+        assert.equals("name=first", body)
+      end
     end)
   end)
 end)

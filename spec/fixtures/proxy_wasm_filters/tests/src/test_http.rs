@@ -160,6 +160,10 @@ impl TestHttp {
                         return self.send_http_dispatch(config);
                     }
                     "update_metrics" => self.update_metrics(),
+                    "dump_config" => {
+                        let res = self.config.as_ref().map(|config| config.to_string());
+                        self.send_plain_response(StatusCode::OK, res.as_deref());
+                    }
                     _ => (),
                 }
             }
