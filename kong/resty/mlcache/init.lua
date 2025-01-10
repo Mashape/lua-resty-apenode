@@ -412,6 +412,28 @@ local function set_shm(self, shm_key, value, ttl, neg_ttl, flags, shm_set_tries,
 end
 
 
+local function del_shm(self, shm_key, value)
+    local shm = self.shm
+    local dict = self.dict
+
+    if value == nil then
+        if self.dict_miss then
+            shm = self.shm_miss
+            dict = self.dict_miss
+        end
+    end
+
+    local ok, err = dict:delete(shm_key)
+
+    if not ok then
+        ngx_log(WARN, "could not delete from lua_shared_dict '" .. shm
+                      .. "': " .. err)
+        return
+    end
+
+    return true
+end
+
 local function set_shm_set_lru(self, key, shm_key, value, ttl, neg_ttl, flags,
                                shm_set_tries, l1_serializer, throw_no_mem)
 
@@ -421,7 +443,13 @@ local function set_shm_set_lru(self, key, shm_key, value, ttl, neg_ttl, flags,
         return nil, err
     end
 
-    return set_lru(self, key, value, ttl, neg_ttl, l1_serializer)
+    ok, err = set_lru(self, key, value, ttl, neg_ttl, l1_serializer)
+    if not ok and err then
+        -- l1_serializer returned nil + err, do not store the cached vaule in L2
+        del_shm(self, shm_key, value)
+    end
+
+    return ok, err
 end
 
 
