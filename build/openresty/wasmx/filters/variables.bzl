@@ -5,7 +5,7 @@ A list of wasm filters.
 WASM_FILTERS = [
     {
         "name": "datakit-filter",
-        "repo": "Kong/datakit-filter",
+        "repo": "Kong/datakit",
         "tag": "0.1.0",
         "files": {
             "datakit.meta.json": "b9f3b6d51d9566fae1a34c0e5c00f0d5ad5dc8f6ce7bf81931fd0be189de205d",
