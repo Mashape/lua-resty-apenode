@@ -101,6 +101,7 @@ build = {
     ["kong.clustering.services.sync"] = "kong/clustering/services/sync/init.lua",
     ["kong.clustering.services.sync.rpc"] = "kong/clustering/services/sync/rpc.lua",
     ["kong.clustering.services.sync.hooks"] = "kong/clustering/services/sync/hooks.lua",
+    ["kong.clustering.services.sync.validate"] = "kong/clustering/services/sync/validate.lua",
     ["kong.clustering.services.sync.strategies.postgres"] = "kong/clustering/services/sync/strategies/postgres.lua",
 
     ["kong.cluster_events"] = "kong/cluster_events/init.lua",
