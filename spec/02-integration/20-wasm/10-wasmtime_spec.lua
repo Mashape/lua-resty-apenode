@@ -6,7 +6,7 @@ for _, v in ipairs({ {"off", "off"}, {"on", "off"}, {"on", "on"}, }) do
 
 for _, role in ipairs({"traditional", "control_plane", "data_plane"}) do
 
-describe("#wasm wasmtime (role: " .. role .. ")", function()
+describe("#wasm wasmtime (role: " .. role .. ") (#postgres, #db)", function()
   describe("kong prepare", function()
     local conf
     local prefix = "./wasm"
