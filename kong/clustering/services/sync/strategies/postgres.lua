@@ -59,7 +59,7 @@ end
 
 
 function _M:is_valid_version(str)
-  return sub(v, 1, 4) == VER_PREFIX
+  return sub(str, 1, 4) == VER_PREFIX
 end
 
 
