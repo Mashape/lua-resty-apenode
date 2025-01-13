@@ -18,6 +18,7 @@ local floor = math.floor
 
 local ngx = ngx
 local check_phase = phase_checker.check
+local hostname_type = require("kong.tools.ip").hostname_type
 
 
 local PHASES = phase_checker.phases
@@ -104,6 +105,42 @@ local function new()
 
     local ctx = ngx.ctx
     ctx.balancer_data.host = host
+    ctx.balancer_data.port = port
+  end
+
+
+---
+  -- Sets the IP and port on which to connect to for proxying the request.
+  -- Using this method is equivalent to ask Kong to not run the load-balancing
+  -- phase for this request, and consider it manually overridden.
+  -- Load-balancing components such as retries and health-checks will also be
+  -- ignored for this request. Use `kong.service.set_retries` to overwrite
+  -- retries count.
+  --
+  -- The `ip` argument expects the IP address of the upstream server, and the 
+  -- `port` expects a port number.
+  --
+  -- @function kong.service.set_proxy_address
+  -- @phases access
+  -- @tparam string ip
+  -- @tparam number port
+  -- @usage
+  -- kong.service.set_proxy_address("192.168.130.1", 443)
+  function service.set_proxy_address(ip, port)
+    check_phase(access_and_rewrite_and_balancer_preread)
+
+    if type(ip) ~= "string" or hostname_type(ip) == "name" then
+      return error("ip must be an IPv4 or IPv6 address")
+    end
+    if type(port) ~= "number" or floor(port) ~= port then
+      error("port must be an integer", 2)
+    end
+    if port < 0 or port > 65535 then
+      error("port must be an integer between 0 and 65535: given " .. port, 2)
+    end
+
+    local ctx = ngx.ctx
+    ctx.balancer_data.ip = ip
     ctx.balancer_data.port = port
   end
 

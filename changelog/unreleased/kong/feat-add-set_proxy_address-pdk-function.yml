@@ -1,0 +1,5 @@
+message: |
+ Added `service.set_proxy_address` PDK function to set IP and port to proxy the
+ request and bypass the load-balancer.
+type: feature
+scope: PDK
