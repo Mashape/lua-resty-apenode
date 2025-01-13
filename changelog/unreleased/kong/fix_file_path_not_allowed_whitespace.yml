@@ -1,0 +1,3 @@
+message: "**file-log**: Fixed an issue where the path does not allow whitespace at the beginning or end."
+type: bugfix
+scope: Plugin
