@@ -10,7 +10,7 @@ return {
         fields = {
           { path = { description = "The file path of the output log file. The plugin creates the log file if it doesn't exist yet.", type = "string",
                      required = true,
-                     match = [[^[^*&%%\`]+$]],
+                     match = [[^[^%s*&%%\\`]+$]],
                      err = "not a valid filename",
           }, },
           { reopen = { description = "Determines whether the log file is closed and reopened on every request.", type = "boolean", required = true, default = false }, },

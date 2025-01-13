@@ -31,6 +31,47 @@ describe("Plugin: file-log (schema)", function()
     },
     ----------------------------------------
     {
+      name = "beginning spaces are not allowed",
+      input = {
+        path = " /ovo",
+        reopen = true
+      },
+      output = nil,
+      error = {
+        config = {
+          path = "not a valid filename"
+        }
+      }
+    },
+    {
+      name = "beginning spaces are not allowed",
+      input = {
+        path = "/ov\\o",
+        reopen = true
+      },
+      output = nil,
+      error = {
+        config = {
+          path = "not a valid filename"
+        }
+      }
+    },
+    ----------------------------------------
+    {
+      name = "trailing spaces are not allowed",
+      input = {
+        path = "/ovo ",
+        reopen = true
+      },
+      output = nil,
+      error = {
+        config = {
+          path = "not a valid filename"
+        }
+      }
+    },
+    --------------------------------------
+    {
       name = "accepts valid filename",
       input = {
         path = "/tmp/log.txt",
