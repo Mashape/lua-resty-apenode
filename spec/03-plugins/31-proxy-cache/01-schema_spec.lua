@@ -112,6 +112,13 @@ describe("proxy-cache schema", function()
     assert.is_truthy(entity)
   end)
 
+  it("defines default vary_headers values", function()
+    local config = { strategy = "memory" }
+    local entity, err = v(config, proxy_cache_schema)
+    assert.is_nil(err)
+    assert.is_truthy(entity)
+    assert.same(entity.config.vary_headers, { "Accept-Encoding" })
+  end)
   it("supports vary_headers values", function()
     local entity, err = v({
       strategy = "memory",
