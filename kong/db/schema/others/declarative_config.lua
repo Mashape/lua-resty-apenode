@@ -332,7 +332,7 @@ end
 
 
 local function ws_id_for(item)
-  if item.ws_id == nil or item.ws_id == ngx.null then
+  if item.ws_id == nil or item.ws_id == null then
     return "*"
   end
   return item.ws_id
@@ -414,7 +414,7 @@ local function populate_references(input, known_entities, by_id, by_key, expecte
       local key = use_key and item[endpoint_key]
 
       local failed = false
-      if key and key ~= ngx.null then
+      if key and key ~= null then
         local ok = add_to_by_key(by_key, entity_schema, item, entity, key)
         if not ok then
           add_error(errs, parent_entity, parent_idx, entity, i,
@@ -522,7 +522,7 @@ function DeclarativeConfig.validate_references_sync(deltas, deltas_map)
 
     local foreign_refs = foreign_references[item_type]
 
-    if not item or item == ngx.null or not foreign_refs then
+    if not item or item == null or not foreign_refs then
       goto continue
     end
 
@@ -936,7 +936,7 @@ local function flatten(self, input)
 
         if field.unique then
           local flat_value = flat_entry[name]
-          if flat_value and flat_value ~= ngx.null then
+          if flat_value and flat_value ~= null then
             local unique_key = get_unique_key(schema, entry, field, flat_value)
             uniques[name] = uniques[name] or {}
             if uniques[name][unique_key] then
