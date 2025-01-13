@@ -68,7 +68,7 @@ return {
               }},
             },
           }},
-          { vary_query_params = { description = "Relevant query parameters considered for the cache key. If undefined, all params are taken into consideration.", type = "array",
+          { vary_query_params = { description = "Relevant query parameters considered for the cache key. If undefined, all params are taken into consideration. By default, the max number of params accepted is 100. You can change this value via the `lua_max_post_args` in `kong.conf`.", type = "array",
             elements = { type = "string" },
           }},
           { vary_headers = { description = "Relevant headers considered for the cache key. If undefined, none of the headers are taken into consideration.", type = "array",
