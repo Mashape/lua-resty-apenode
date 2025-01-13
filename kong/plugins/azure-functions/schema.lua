@@ -3,7 +3,7 @@ local typedefs = require "kong.db.schema.typedefs"
 return {
   name = "azure-functions",
   fields = {
-    { protocols = typedefs.protocols },
+    { protocols = typedefs.protocols_http },
     {
       config = {
         type = "record",
