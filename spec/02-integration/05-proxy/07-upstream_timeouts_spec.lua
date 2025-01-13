@@ -111,6 +111,7 @@ for _, strategy in helpers.each_strategy() do
       assert(helpers.start_kong({
         plugins    = "bundled, ctx-checker-last",
         database   = strategy,
+        nginx_http_client_max_body_size = 0,
         nginx_conf = "spec/fixtures/custom_nginx.template",
       }))
     end)

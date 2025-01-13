@@ -802,17 +802,30 @@ describe("NGINX conf compiler", function()
         assert.not_matches("keepalive%s+%d+;", nginx_conf)
       end)
 
-      describe("default injected NGINX directives", function()
+      describe("default injected NGINX directives (proxy)", function()
         it("configures default body buffering directives", function()
-          local conf = assert(conf_loader())
+          local conf = assert(conf_loader(nil, {
+            admin_listen = "off",
+            stream_listen = "off",
+          }))
           local nginx_conf = prefix_handler.compile_kong_conf(conf)
-          assert.matches("client_max_body_size%s+0;", nginx_conf)
-          assert.matches("client_body_buffer_size%s+8k;", nginx_conf)
-          -- Admin API Defaults:
           assert.matches("client_max_body_size%s+10m;", nginx_conf)
-          assert.matches("client_body_buffer_size%s+10m;", nginx_conf)
+          assert.matches("client_body_buffer_size%s+8k;", nginx_conf)
          end)
       end)
+
+      describe("default injected NGINX directives (admin)", function()
+        it("configures default body buffering directives", function()
+          local conf = assert(conf_loader(nil, {
+            proxy_listen = "off",
+            stream_listen = "off",
+          }))
+          local nginx_conf = prefix_handler.compile_kong_conf(conf)
+          assert.matches("client_max_body_size%s+10m;", nginx_conf)
+          assert.matches("client_body_buffer_size%s+8k;", nginx_conf)
+        end)
+      end)
+
     end)
   end)
 

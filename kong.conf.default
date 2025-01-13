@@ -1110,15 +1110,15 @@
                                                 # request headers.
                                                 # See http://nginx.org/en/docs/http/ngx_http_core_module.html#large_client_header_buffers
 
-#nginx_http_client_max_body_size = 0  # Defines the maximum request body size
-                                      # allowed by requests proxied by Kong,
-                                      # specified in the Content-Length request
-                                      # header. If a request exceeds this
-                                      # limit, Kong will respond with a 413
-                                      # (Request Entity Too Large). Setting
-                                      # this value to 0 disables checking the
-                                      # request body size.
-                                      # See http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
+#nginx_http_client_max_body_size = 10m  # Defines the maximum request body size
+                                        # allowed by requests proxied by Kong,
+                                        # specified in the Content-Length request
+                                        # header. If a request exceeds this
+                                        # limit, Kong will respond with a 413
+                                        # (Request Entity Too Large). Setting
+                                        # this value to 0 disables checking the
+                                        # request body size.
+                                        # See http://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
 
 #nginx_admin_client_max_body_size = 10m  # Defines the maximum request body size for
                                          # Admin API.

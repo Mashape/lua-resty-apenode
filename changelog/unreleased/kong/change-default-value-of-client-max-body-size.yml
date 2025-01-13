@@ -1,0 +1,5 @@
+message: |
+    **Important** Changed the default value of `nginx_http_client_max_body_size` in
+    Kong configuration from `0` (unbounded) to `10m` (10 megabytes).
+type: bugfix
+scope: Configuration
