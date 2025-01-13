@@ -93,7 +93,7 @@ function _M.execute(conf)
   for k in pairs(conf.limits) do
     local remaining
     for _, lv in pairs(usage[k]) do
-      if conf.block_on_first_violation and lv.remaining == 0 then
+      if conf.block_on_first_violation and lv.remaining <= 0 then
         return kong.response.error(HTTP_TOO_MANY_REQUESTS,
           "API rate limit exceeded for '" .. k .. "'")
       end
