@@ -23,7 +23,6 @@ local MAX_RETRY = 5
 
 local assert = assert
 local ipairs = ipairs
-local sub = string.sub
 local ngx_null = ngx.null
 local ngx_log = ngx.log
 local ngx_ERR = ngx.ERR
@@ -57,17 +56,6 @@ end
 
 local function get_current_version()
   return declarative.get_current_hash() or DECLARATIVE_EMPTY_CONFIG_HASH
-end
-
-
-local is_valid_version
-do
-  local VER_PREFIX = "v02_"
-
-  -- version string must start with 'v02_'
-  is_valid_version = function(v)
-    return sub(v, 1, 4) == VER_PREFIX
-  end
 end
 
 
@@ -118,7 +106,7 @@ function _M:init_cp(manager)
     end
 
     --  string comparison effectively does the same as number comparison
-    if not is_valid_version(default_namespace_version) or
+    if not self.strategy:is_valid_version(default_namespace_version) or
        default_namespace_version < latest_version then
       return full_sync_result()
     end

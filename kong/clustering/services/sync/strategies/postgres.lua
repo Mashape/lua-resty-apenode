@@ -2,12 +2,14 @@ local _M = {}
 local _MT = { __index = _M }
 
 
+local sub = string.sub
 local fmt = string.format
 local ngx_null = ngx.null
 
 
 -- version string should look like: "v02_0000"
-local VERSION_FMT = "v02_%028x"
+local VER_PREFIX = "v02_"
+local VERSION_FMT = VER_PREFIX .. "%028x"
 
 
 function _M.new(db)
@@ -53,6 +55,11 @@ function _M:get_latest_version()
   end
 
   return fmt(VERSION_FMT, ver)
+end
+
+
+function _M:is_valid_version(str)
+  return sub(v, 1, 4) == VER_PREFIX
 end
 
 
