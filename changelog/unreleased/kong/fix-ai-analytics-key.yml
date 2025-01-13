@@ -1,0 +1,6 @@
+message: |
+   **AI Plugins**: Changed the serialized log key of AI metrics from `ai.ai-proxy` to `ai.proxy`, to avoid conflicts with metrics
+   generated from plugins other than AI Proxy and AI Proxy Advanced. Users using logging plugins like file-log, http-log, etc. would
+   except to update metrics pipeline configurations to reflect this change.
+type: breaking_change
+scope: Plugin
