@@ -685,6 +685,10 @@ build = {
     ["kong.plugins.redirect.handler"] = "kong/plugins/redirect/handler.lua",
     ["kong.plugins.redirect.schema"]  = "kong/plugins/redirect/schema.lua",
 
+    ["kong.plugins.remote-auth.access"]  = "kong/plugins/remote-auth/access.lua",
+    ["kong.plugins.remote-auth.handler"] = "kong/plugins/remote-auth/handler.lua",
+    ["kong.plugins.remote-auth.schema"]  = "kong/plugins/remote-auth/schema.lua",
+
     ["kong.vaults.env"] = "kong/vaults/env/init.lua",
     ["kong.vaults.env.schema"] = "kong/vaults/env/schema.lua",
 

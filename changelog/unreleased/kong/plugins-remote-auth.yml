@@ -1,0 +1,4 @@
+message: |
+   "**remote-auth**: Add a new plugin to authenticate requests via remote server
+type: "feature"
+scope: "Plugin"

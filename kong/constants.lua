@@ -43,7 +43,8 @@ local plugins = {
   "ai-request-transformer",
   "ai-response-transformer",
   "standard-webhooks",
-  "redirect"
+  "redirect",
+  "remote-auth",
 }
 
 local plugin_map = {}
