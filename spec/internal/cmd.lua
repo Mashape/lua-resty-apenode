@@ -21,7 +21,7 @@ local prefix_handler = require("kong.cmd.utils.prefix_handler")
 local CONSTANTS = require("spec.internal.constants")
 local conf = require("spec.internal.conf")
 local shell = require("spec.internal.shell")
-local DB = require("spec.internal.db")
+local DB
 local pid = require("spec.internal.pid")
 local dns_mock = require("spec.internal.dns")
 
@@ -263,6 +263,10 @@ end
 --
 -- assert(helpers.start_kong( {database = "postgres"}, nil, nil, fixtures))
 local function start_kong(env, tables, preserve_prefix, fixtures)
+  if not DB then
+    DB = require("spec.internal.db")
+  end
+
   if tables ~= nil and type(tables) ~= "table" then
     error("arg #2 must be a list of tables to truncate")
   end
