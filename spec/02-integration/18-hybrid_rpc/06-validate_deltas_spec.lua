@@ -2,6 +2,7 @@ local helpers = require "spec.helpers"
 local txn = require "resty.lmdb.transaction"
 local declarative = require "kong.db.declarative"
 
+
 local insert_entity_for_txn = declarative.insert_entity_for_txn
 local validate_deltas = require("kong.clustering.services.sync.validate").validate_deltas
 

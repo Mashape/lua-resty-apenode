@@ -1,6 +1,7 @@
 local declarative = require("kong.db.declarative")
 local declarative_config = require("kong.db.schema.others.declarative_config")
 
+local null = ngx.null
 local tb_insert = table.insert
 local validate = declarative_config.validate
 local pk_string = declarative_config.pk_string
@@ -23,7 +24,7 @@ local function validate_deltas(deltas, is_full_sync)
     local delta_type = delta.type
     local delta_entity = delta.entity
 
-    if delta_entity ~= nil and delta_entity ~= ngx.null then
+    if delta_entity ~= nil and delta_entity ~= null then
       dc_table[delta_type] = dc_table[delta_type] or {}
 
       tb_insert(dc_table[delta_type], delta_entity)
