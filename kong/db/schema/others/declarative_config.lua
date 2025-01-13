@@ -528,6 +528,10 @@ function DeclarativeConfig.validate_references_sync(deltas, deltas_map)
 
     for k, v in pairs(item) do
 
+      -- Try to check if item's some foreign key exists in the deltas or LMDB.
+      -- For example, `item[k]` could be `<router_entity>["service"]`, we need
+      -- to find the referenced foreign service entity for this router entity.
+
       local foreign_entity = foreign_refs[k]
 
       if foreign_entity and v ~= null then  -- k is foreign key
