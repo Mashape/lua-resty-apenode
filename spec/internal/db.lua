@@ -277,7 +277,7 @@ end
 --   route = { id = route1.id },
 --   config = {},
 -- }
-local function get_db_utils(strategy, tables, plugins, vaults, skip_migrations)
+local function get_db_utils(strategy, tables, plugins, vaults, skip_migrations, expand_foreigns)
   strategy = strategy or conf.database
   conf.database = strategy  -- overwrite kong.configuration.database
 
@@ -343,7 +343,7 @@ local function get_db_utils(strategy, tables, plugins, vaults, skip_migrations)
     bp = assert(Blueprints.new(db))
     dcbp = nil
   else
-    bp = assert(dc_blueprints.new(db))
+    bp = assert(dc_blueprints.new(db, expand_foreigns))
     dcbp = bp
   end
 

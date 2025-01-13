@@ -64,6 +64,10 @@ if not os.getenv("KONG_BUSTED_RESPAWNED") then
   -- create shared dict
   resty_flags = resty_flags .. require("spec.fixtures.shared_dict")
 
+  -- create lmdb environment
+  local lmdb_env = os.tmpname()
+  resty_flags = resty_flags .. string.format(' --main-conf "lmdb_environment_path %s;" ', lmdb_env)
+
   if resty_flags then
     table.insert(cmd, cmd_prefix_count+1, resty_flags)
   end

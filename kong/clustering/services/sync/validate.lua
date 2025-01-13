@@ -1,10 +1,11 @@
-local errors = require("kong.db.errors")
+local declarative = require("kong.db.declarative")
 local declarative_config = require("kong.db.schema.others.declarative_config")
 
 local validate = declarative_config.validate
 local pk_string = declarative_config.pk_string
 local validate_references_full = declarative_config.validate_references_full
 local validate_references_sync = declarative_config.validate_references_sync
+local pretty_print_error = declarative.pretty_print_error
 
 
 local function validate_deltas(deltas, is_full_sync)
@@ -40,14 +41,14 @@ local function validate_deltas(deltas, is_full_sync)
 
   local ok, err_t = validate(dc_schema, dc_table)
   if not ok then
-    return nil, errors:schema_violation(err_t)
+    return nil, pretty_print_error(err_t)
   end
 
   -- validate references for full sync
   if is_full_sync then
     local ok, err_t = validate_references_full(dc_schema, dc_table)
     if not ok then
-      return nil, errors:schema_violation(err_t)
+      return nil, pretty_print_error(err_t)
     end
     return true
   end
@@ -55,7 +56,7 @@ local function validate_deltas(deltas, is_full_sync)
   -- validate references for non full sync
   local ok, err_t = validate_references_sync(deltas, deltas_map)
   if not ok then
-    return nil, errors:schema_violation(err_t)
+    return nil, pretty_print_error(err_t)
   end
 
   return true
