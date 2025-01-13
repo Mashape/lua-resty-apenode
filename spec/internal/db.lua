@@ -261,6 +261,10 @@ end
 -- custom plugins as loaded.
 -- @param vaults (optional) vault configuration to use.
 -- @param skip_migrations (optional) if true, migrations will not be run.
+-- @param expand_foreigns (optional) If true, it will prevent converting foreign
+-- keys from primary key value pairs to strings. For example, it will keep the
+-- foreign key of the router entity as `service = { id = "<uuid>" }` instead of
+-- converting it to `service = "<uuid>"`.
 -- @return BluePrint, DB
 -- @usage
 -- local PLUGIN_NAME = "my_fancy_plugin"
