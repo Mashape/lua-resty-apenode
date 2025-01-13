@@ -1,0 +1,4 @@
+message: |
+  Added new panels to the Grafana dashboard
+type: feature
+scope: Plugin
