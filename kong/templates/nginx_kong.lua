@@ -84,6 +84,16 @@ upstream kong_upstream {
     }
 }
 
+> if (role == "control_plane" or role == "traditional") and #admin_listeners > 0 then
+upstream kong_admin_gui_api {
+  server 0.0.0.1;
+
+  balancer_by_lua_block {
+    Kong.admin_gui_api_balancer()
+  }
+}
+> end
+
 server {
     server_name kong;
 > for _, entry in ipairs(proxy_listeners) do

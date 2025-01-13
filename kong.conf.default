@@ -2032,10 +2032,13 @@
 
 #admin_gui_api_url =    # Hierarchical part of a URI which is composed
                         # optionally of a host, port, and path at which the
-                        # Admin API accepts HTTP or HTTPS traffic. When
-                        # this config is disabled, Kong Manager will
-                        # use the window protocol + host and append the
-                        # resolved admin_listen HTTP/HTTPS port.
+                        # Admin API accepts HTTP or HTTPS traffic.
+                        # 
+                        # Examples:
+                        # - http://localhost:8001
+                        # - http://127.0.0.1:8001
+                        # - https://admin.konghq.com:8444
+                        # - https://127.0.0.1:8444
 
 #admin_gui_ssl_cert =   # The SSL certificate for `admin_gui_listen` values
                         # with SSL enabled.

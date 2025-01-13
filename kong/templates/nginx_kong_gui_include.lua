@@ -23,6 +23,25 @@ location = $(admin_gui_path_prefix)/kconfig.js {
     }
 }
 
+> if (role == "control_plane" or role == "traditional") and #admin_listeners > 0 then
+location ~* $(admin_gui_path_prefix)/gateway/api {
+    set_by_lua_block $backend {
+        local utils = require "kong.admin_gui.utils"
+        local listener = utils.select_listener(kong.configuration.admin_listeners, { ssl = true })
+        if listener then
+            return "https://kong_admin_gui_api"
+        else
+            return "http://kong_admin_gui_api"
+        end
+    }
+    rewrite ^$(admin_gui_path_prefix)/gateway/api(/.*)$ $1 break;
+    proxy_pass $backend;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+> end
+
 location = $(admin_gui_path_prefix)/favicon.ico {
     root gui;
 
