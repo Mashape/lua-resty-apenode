@@ -13,6 +13,7 @@ local http_route_ignore_host      = "http-route-ignore"
 local http_route_w3c_host         = "http-route-w3c"
 local http_route_dd_host          = "http-route-dd"
 local http_route_b3_single_host   = "http-route-b3-single"
+local http_route_ins_host         = "http-route-ins"
 local http_route_clear_host       = "http-clear-route"
 local http_route_no_preserve_host = "http-no-preserve-route"
 
@@ -124,6 +125,18 @@ local function setup_otel_old_propagation(bp, service)
       header_type = "b3-single",
     }
   })
+
+  bp.plugins:insert({
+    name = "opentelemetry",
+    route = {id = bp.routes:insert({
+      service = service,
+      hosts = { http_route_ins_host },
+    }).id},
+    config = {
+      traces_endpoint = "http://localhost:8080/v1/traces",
+      header_type = "instana",
+    }
+  })
 end
 
 -- same configurations as "setup_otel_old_propagation", using the new
@@ -138,7 +151,7 @@ local function setup_otel_new_propagation(bp, service)
     config = {
       traces_endpoint = "http://localhost:8080/v1/traces",
       propagation = {
-        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp" },
+        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp", "instana" },
         inject = { "preserve" },
         default_format = "w3c",
       }
@@ -170,7 +183,7 @@ local function setup_otel_new_propagation(bp, service)
     config = {
       traces_endpoint = "http://localhost:8080/v1/traces",
       propagation = {
-        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp" },
+        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp", "instana" },
         inject = { "preserve", "w3c" },
         default_format = "w3c",
       }
@@ -186,7 +199,7 @@ local function setup_otel_new_propagation(bp, service)
     config = {
       traces_endpoint = "http://localhost:8080/v1/traces",
       propagation = {
-        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp" },
+        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp", "instana" },
         inject = { "preserve", "datadog" },
         default_format = "datadog",
       }
@@ -202,13 +215,28 @@ local function setup_otel_new_propagation(bp, service)
     config = {
       traces_endpoint = "http://localhost:8080/v1/traces",
       propagation = {
-        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp" },
+        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp", "instana" },
         inject = { "preserve", "b3-single" },
         default_format = "w3c",
       }
     }
   })
 
+  bp.plugins:insert({
+    name = "opentelemetry",
+    route = {id = bp.routes:insert({
+      service = service,
+      hosts = { http_route_ins_host },
+    }).id},
+    config = {
+      traces_endpoint = "http://localhost:8080/v1/traces",
+      propagation = {
+        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp", "instana" },
+        inject = { "preserve", "instana" },
+        default_format = "instana",
+      }
+    }
+  })
   -- available with new configuration only:
   -- no preserve
   bp.plugins:insert({
@@ -511,6 +539,21 @@ describe("propagation tests #"    .. strategy         ..
     assert.equals(trace_id, json.headers["ot-tracer-traceid"])
   end)
 
+  it("propagates instana headers", function()
+    local trace_id = gen_trace_id()
+    local span_id = gen_span_id()
+    local r = proxy_client:get("/", {
+      headers = {
+        ["x-instana-t"] = trace_id,
+        ["x-instana-s"] = span_id,
+        host = http_route_ins_host,
+      },
+    })
+    local body = assert.response(r).has.status(200)
+    local json = cjson.decode(body)
+
+    assert.equals(trace_id, json.headers["x-instana-t"])
+  end)
 
   describe("propagates datadog tracing headers", function()
     it("with datadog headers in client request", function()

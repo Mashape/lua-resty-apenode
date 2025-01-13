@@ -47,7 +47,7 @@ local function get_plugin_params(config)
         formats.DATADOG,
         formats.AWS,
         formats.GCP,
-
+        formats.INSTANA
       }
       propagation_config.inject = { "preserve" }
 
@@ -63,6 +63,7 @@ local function get_plugin_params(config)
         formats.DATADOG,
         formats.AWS,
         formats.GCP,
+        formats.INSTANA,
       }
       propagation_config.inject = {
         -- the old logic used to propagate the "found" incoming format
