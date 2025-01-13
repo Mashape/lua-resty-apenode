@@ -1,6 +1,5 @@
 local policies = require "kong.plugins.response-ratelimiting.policies"
 local timestamp = require "kong.tools.timestamp"
-local pdk_private_rl = require "kong.pdk.private.rate_limiting"
 
 
 local kong = kong
@@ -8,10 +7,6 @@ local next = next
 local pairs = pairs
 local error = error
 local tostring = tostring
-
-
-local pdk_rl_store_response_header = pdk_private_rl.store_response_header
-local pdk_rl_apply_response_headers = pdk_private_rl.apply_response_headers
 
 
 local EMPTY = require("kong.tools.table").EMPTY
@@ -89,7 +84,6 @@ function _M.execute(conf)
   end
 
   -- Append usage headers to the upstream request. Also checks "block_on_first_violation".
-  local ngx_ctx = ngx.ctx
   for k in pairs(conf.limits) do
     local remaining
     for _, lv in pairs(usage[k]) do
@@ -103,10 +97,8 @@ function _M.execute(conf)
       end
     end
 
-    pdk_rl_store_response_header(ngx_ctx, RATELIMIT_REMAINING .. "-" .. k, remaining)
+    kong.service.request.set_header(RATELIMIT_REMAINING .. "-" .. k, remaining)
   end
-
-  pdk_rl_apply_response_headers(ngx_ctx)
 
   kong.ctx.plugin.usage = usage -- For later use
 end
