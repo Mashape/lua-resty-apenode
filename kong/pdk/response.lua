@@ -244,7 +244,7 @@ local function new(self, major_version)
       error("header name must be a string", 2)
     end
 
-    local header_value = _RESPONSE.get_headers()[name]
+    local header_value = ngx.header[name]
     if type(header_value) == "table" then
       return header_value[1]
     end

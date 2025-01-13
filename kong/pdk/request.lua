@@ -61,8 +61,6 @@ local function new(self)
   local MIN_PORT               = 1
   local MAX_PORT               = 65535
 
-  local CONTENT_TYPE           = "Content-Type"
-
   local CONTENT_TYPE_POST      = "application/x-www-form-urlencoded"
   local CONTENT_TYPE_JSON      = "application/json"
   local CONTENT_TYPE_FORM_DATA = "multipart/form-data"
@@ -98,7 +96,7 @@ local function new(self)
   function _REQUEST.get_scheme()
     check_phase(PHASES.request)
 
-    return var.scheme
+    return ngx.ctx.scheme or var.scheme
   end
 
 
@@ -116,7 +114,7 @@ local function new(self)
   function _REQUEST.get_host()
     check_phase(PHASES.request)
 
-    return var.host
+    return ngx.ctx.host or var.host
   end
 
 
@@ -437,7 +435,7 @@ local function new(self)
   function _REQUEST.get_raw_path()
     check_phase(PHASES.request)
 
-    local uri = var.request_uri or ""
+    local uri = ngx.ctx.request_uri or var.request_uri or ""
     local s = find(uri, "?", 2, true)
     return s and sub(uri, 1, s - 1) or uri
   end
@@ -456,7 +454,7 @@ local function new(self)
   -- kong.request.get_path_with_query() -- "/v1/movies?movie=foo"
   function _REQUEST.get_path_with_query()
     check_phase(PHASES.request)
-    return var.request_uri or ""
+    return ngx.ctx.request_uri or var.request_uri or ""
   end
 
 
@@ -619,14 +617,14 @@ local function new(self)
   -- kong.request.get_header("Host")            -- "foo.com"
   -- kong.request.get_header("x-custom-header") -- "bla"
   -- kong.request.get_header("X-Another")       -- "foo bar"
-  function _REQUEST.get_header(name)
+  function _REQUEST.get_header(name, ctx)
     check_phase(PHASES.request)
 
     if type(name) ~= "string" then
       error("header name must be a string", 2)
     end
 
-    return http_get_header(name)
+    return http_get_header(name, ctx)
   end
 
 
@@ -820,8 +818,7 @@ local function new(self)
   -- body.age  -- "42"
   function _REQUEST.get_body(mimetype, max_args, max_allowed_file_size)
     check_phase(before_content)
-
-    local content_type = mimetype or _REQUEST.get_header(CONTENT_TYPE)
+    local content_type = mimetype or ngx.var.http_content_type
     if not content_type then
       return nil, "missing content type"
     end

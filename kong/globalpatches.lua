@@ -127,6 +127,7 @@ return function(options)
       local get_uri_args = ngx.req.get_uri_args
       local get_post_args = ngx.req.get_post_args
       local decode_args = ngx.decode_args
+      local read_req_body = ngx.req.read_body
 
       local DEFAULT_MAX_REQ_HEADERS = 100
       local DEFAULT_MAX_RESP_HEADERS = 100
@@ -232,6 +233,15 @@ return function(options)
         return decode_args_real(str, max_args or MAX_DECODE_ARGS, ...)
       end
       -- ]
+
+      -- READ REQUEST BODY [
+      _G.ngx.req.read_body = function()
+        -- for the same request, only one `read_body` call is needed
+        if not ngx.ctx.body_read then
+          read_req_body()
+          ngx.ctx.body_read = true
+        end
+      end
     end
   end
 

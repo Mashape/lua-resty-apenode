@@ -12,7 +12,6 @@ local ngx_arg = ngx.arg
 local ngx_var = ngx.var
 
 local kong_request_get_path = kong.request.get_path
-local kong_request_get_header = kong.request.get_header
 local kong_request_get_method = kong.request.get_method
 local kong_request_get_raw_body = kong.request.get_raw_body
 local kong_response_exit = kong.response.exit
@@ -51,7 +50,7 @@ function grpc_web:access(conf)
   end
 
   local dec, err = deco.new(
-    kong_request_get_header("Content-Type"),
+    ngx.var.http_content_type,
     uri, conf.proto)
 
   if not dec then

@@ -285,10 +285,11 @@ local function new(pdk, major_version)
   -- -- or `access` phase prior calling this function.
   --
   -- local body = kong.service.response.get_raw_body()
-  function response.get_raw_body()
+  function response.get_raw_body(buffered_proxying)
     check_phase(header_body_log)
     local ctx = ngx.ctx
-    if not ctx.buffered_proxying then
+    local buffered = buffered_proxying or ctx.buffered_proxying
+    if not buffered then
       error("service body is only available with buffered proxying " ..
             "(see: kong.service.request.enable_buffering function)", 2)
     end
@@ -313,7 +314,8 @@ local function new(pdk, major_version)
   -- local body = kong.service.response.get_body()
   function response.get_body(mimetype, max_args)
     check_phase(header_body_log)
-    if not ngx.ctx.buffered_proxying then
+    local bufferred_proxying = ngx.ctx.buffered_proxying
+    if not bufferred_proxying then
       error("service body is only available with buffered proxying " ..
             "(see: kong.service.request.enable_buffering function)", 2)
     end
@@ -344,7 +346,7 @@ local function new(pdk, major_version)
         end
       end
 
-      local body = response.get_raw_body()
+      local body = response.get_raw_body(bufferred_proxying)
       local pargs, err = ngx.decode_args(body, max_args or MAX_POST_ARGS_DEFAULT)
       if not pargs then
         return nil, err, CONTENT_TYPE_POST
@@ -353,7 +355,7 @@ local function new(pdk, major_version)
       return pargs, nil, CONTENT_TYPE_POST
 
     elseif find(content_type_lower, CONTENT_TYPE_JSON, 1, true) == 1 then
-      local body = response.get_raw_body()
+      local body = response.get_raw_body(bufferred_proxying)
       local json = cjson.decode_with_array_mt(body)
       if type(json) ~= "table" then
         return nil, "invalid json body", CONTENT_TYPE_JSON
@@ -362,7 +364,7 @@ local function new(pdk, major_version)
       return json, nil, CONTENT_TYPE_JSON
 
     elseif find(content_type_lower, CONTENT_TYPE_FORM_DATA, 1, true) == 1 then
-      local body = response.get_raw_body()
+      local body = response.get_raw_body(bufferred_proxying)
 
       local parts = multipart(body, content_type)
       if not parts then

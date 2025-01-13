@@ -877,7 +877,7 @@ local function parse_access_token(conf)
       parameters[ACCESS_TOKEN] = nil
       kong.service.request.set_query(parameters)
 
-      local content_type = kong.request.get_header("content-type")
+      local content_type = ngx.var.http_content_type
       local is_form_post = content_type and
         string_find(content_type, "application/x-www-form-urlencoded", 1, true)
 

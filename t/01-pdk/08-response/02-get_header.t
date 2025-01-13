@@ -116,7 +116,7 @@ X-Missing: nil
 
 
 
-=== TEST 4: response.get_header() returns nil when response header does not fit in default max_headers
+=== TEST 4: response.get_header() returns existing header will not limited by get_headers() default max_headers configuration
 --- http_config eval: $t::Util::HttpConfig
 --- config
     location = /t {
@@ -145,7 +145,7 @@ X-Missing: nil
 --- request
 GET /t
 --- response_body chop
-accept header value: nil
+accept header value: string
 --- no_error_log
 [error]
 

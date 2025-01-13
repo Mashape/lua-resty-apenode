@@ -241,8 +241,9 @@ local function unauthorized(message, authorization_scheme)
 end
 
 local function do_authentication(conf)
-  local authorization_value = kong.request.get_header(AUTHORIZATION)
-  local proxy_authorization_value = kong.request.get_header(PROXY_AUTHORIZATION)
+  local ctx = {}
+  local authorization_value = kong.request.get_header(AUTHORIZATION, ctx)
+  local proxy_authorization_value = kong.request.get_header(PROXY_AUTHORIZATION, ctx)
 
   local scheme = conf.header_type
   if scheme == "ldap" then

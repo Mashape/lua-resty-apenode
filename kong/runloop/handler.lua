@@ -1168,7 +1168,8 @@ return {
 
       ctx.scheme = var.scheme
       ctx.request_uri = var.request_uri
-
+      ctx.host = var.host
+      
       -- trace router
       local span = instrumentation.router()
       -- create the balancer span "in advance" so its ID is available
@@ -1210,7 +1211,7 @@ return {
         req_dyn_hook_run_hook("timing", "workspace_id:got", ctx.workspace)
       end
 
-      local host           = var.host
+      local host           = ctx.host
       local port           = ctx.host_port or tonumber(var.server_port, 10)
 
       local route          = match_t.route
