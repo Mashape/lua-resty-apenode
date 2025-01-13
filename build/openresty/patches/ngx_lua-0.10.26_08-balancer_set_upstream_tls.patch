@@ -1,0 +1,51 @@
+diff --git a/bundle/ngx_lua-0.10.26/src/ngx_http_lua_balancer.c b/bundle/ngx_lua-0.10.26/src/ngx_http_lua_balancer.c
+index af4da73..f119948 100644
+--- a/bundle/ngx_lua-0.10.26/src/ngx_http_lua_balancer.c
++++ b/bundle/ngx_lua-0.10.26/src/ngx_http_lua_balancer.c
+@@ -808,5 +808,46 @@ ngx_http_lua_ffi_balancer_recreate_request(ngx_http_request_t *r,
+     return u->create_request(r);
+ }
+ 
++int
++ngx_http_lua_ffi_balancer_set_upstream_tls(ngx_http_request_t *r, int on,
++    char **err)
++{
++    ngx_http_lua_ctx_t    *ctx;
++    ngx_http_upstream_t   *u;
++
++    if (r == NULL) {
++        *err = "no request found";
++        return NGX_ERROR;
++    }
++
++    u = r->upstream;
++
++    if (u == NULL) {
++        *err = "no upstream found";
++        return NGX_ERROR;
++    }
++
++    ctx = ngx_http_get_module_ctx(r, ngx_http_lua_module);
++    if (ctx == NULL) {
++        *err = "no ctx found";
++        return NGX_ERROR;
++    }
++
++    if ((ctx->context & NGX_HTTP_LUA_CONTEXT_BALANCER) == 0) {
++        *err = "API disabled in the current context";
++        return NGX_ERROR;
++    }
++
++    if (on == 0) {
++        u->ssl = 0;
++        u->schema.len = sizeof("http://") - 1;
++
++    } else {
++        u->ssl = 1;
++        u->schema.len = sizeof("https://") - 1;
++    }
++
++    return NGX_OK;
++}
+ 
+ /* vi:set ft=c ts=4 sw=4 et fdm=marker: */

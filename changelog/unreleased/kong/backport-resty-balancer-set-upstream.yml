@@ -1,0 +1,3 @@
+message: backport balancer.set_upstream_tls feature from openresty upstream [openresty/lua-resty-core#460](https://github.com/openresty/lua-resty-core/pull/460)
+type: feature
+scope: Core

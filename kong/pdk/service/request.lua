@@ -6,7 +6,7 @@ local cjson = require "cjson.safe"
 local buffer = require "string.buffer"
 local checks = require "kong.pdk.private.checks"
 local phase_checker = require "kong.pdk.private.phases"
-
+local balancer = require "ngx.balancer"
 
 local ngx = ngx
 local ngx_var = ngx.var
@@ -110,6 +110,15 @@ local function new(self)
 
     if scheme ~= "http" and scheme ~= "https" then
       error("invalid scheme: " .. scheme, 2)
+    end
+
+    if ngx.get_phase() == "balancer" then
+      if scheme == "https" then
+        kong.service.request.enable_tls()
+      end
+      if scheme == "http" then
+        kong.service.request.disable_tls()
+      end
     end
 
     ngx_var.upstream_scheme = scheme
@@ -710,6 +719,16 @@ local function new(self)
       check_phase(preread_and_balancer)
 
       return disable_proxy_ssl()
+    end
+  else
+    request.disable_tls = function()
+      check_phase(preread_and_balancer)
+      return balancer.set_upstream_tls(false)
+    end
+
+    request.enable_tls = function()
+      check_phase(preread_and_balancer)
+      return balancer.set_upstream_tls(true)
     end
   end
 

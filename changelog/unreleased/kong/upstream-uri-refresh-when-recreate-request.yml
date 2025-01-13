@@ -1,0 +1,3 @@
+message: refresh upstream uri variable when proxy pass balancer recreate
+type: feature
+scope: Core

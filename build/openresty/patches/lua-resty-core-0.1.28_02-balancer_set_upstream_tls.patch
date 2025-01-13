@@ -1,0 +1,205 @@
+diff --git a/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.lua b/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.lua
+index 7d64d63..b0b7543 100644
+--- a/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.lua
++++ b/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.lua
+@@ -22,6 +22,7 @@ local ngx_lua_ffi_balancer_set_current_peer
+ local ngx_lua_ffi_balancer_set_more_tries
+ local ngx_lua_ffi_balancer_get_last_failure
+ local ngx_lua_ffi_balancer_set_timeouts -- used by both stream and http
++local ngx_lua_ffi_balancer_set_upstream_tls
+ 
+ 
+ if subsystem == 'http' then
+@@ -41,6 +42,8 @@ if subsystem == 'http' then
+ 
+     int ngx_http_lua_ffi_balancer_recreate_request(ngx_http_request_t *r,
+         char **err);
++    int ngx_http_lua_ffi_balancer_set_upstream_tls(ngx_http_request_t *r,
++        int on, char **err);
+     ]]
+ 
+     ngx_lua_ffi_balancer_set_current_peer =
+@@ -55,6 +58,9 @@ if subsystem == 'http' then
+     ngx_lua_ffi_balancer_set_timeouts =
+         C.ngx_http_lua_ffi_balancer_set_timeouts
+ 
++    ngx_lua_ffi_balancer_set_upstream_tls =
++        C.ngx_http_lua_ffi_balancer_set_upstream_tls
++
+ elseif subsystem == 'stream' then
+     ffi.cdef[[
+     int ngx_stream_lua_ffi_balancer_set_current_peer(
+@@ -228,6 +234,29 @@ if subsystem == 'http' then
+ 
+         return nil, "failed to recreate the upstream request"
+     end
++
++
++    function _M.set_upstream_tls(on)
++        local r = get_request()
++        if not r then
++            return error("no request found")
++        end
++
++        local rc
++
++        if on == 0 or on == false then
++            on = 0
++        else
++            on = 1
++        end
++
++        rc = ngx_lua_ffi_balancer_set_upstream_tls(r, on, errmsg);
++        if rc == FFI_OK then
++            return true
++        end
++
++        return nil, ffi_str(errmsg[0])
++    end
+ end
+ 
+ 
+diff --git a/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.md b/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.md
+index ef2f124..3ec8cb9 100644
+--- a/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.md
++++ b/bundle/lua-resty-core-0.1.28/lib/ngx/balancer.md
+@@ -13,11 +13,12 @@ Table of Contents
+     * [stream subsystem](#stream-subsystem)
+ * [Description](#description)
+ * [Methods](#methods)
++    * [get_last_failure](#get_last_failure)
++    * [recreate_request](#recreate_request)
+     * [set_current_peer](#set_current_peer)
+     * [set_more_tries](#set_more_tries)
+-    * [get_last_failure](#get_last_failure)
+     * [set_timeouts](#set_timeouts)
+-    * [recreate_request](#recreate_request)
++    * [set_upstream_tls](#set_upstream_tls)
+ * [Community](#community)
+     * [English Mailing List](#english-mailing-list)
+     * [Chinese Mailing List](#chinese-mailing-list)
+@@ -270,6 +271,21 @@ This function was first added in the `0.1.20` version of this library.
+ 
+ [Back to TOC](#table-of-contents)
+ 
++set_upstream_tls
++------------
++**syntax:** `ok, err = balancer.set_upstream_tls(on)`
++
++**context:** *balancer_by_lua&#42;*
++
++Turn off the HTTPs or reenable the HTTPs for the upstream connection.
++
++- If `on` is `true`, then the https protocol will be used to connect to the upstream server.
++- If `on` is `false`, then the http protocol will be used to connect to the upstream server.
++
++This function was first added in the `0.1.29` version of this library.
++
++[Back to TOC](#table-of-contents)
++
+ Community
+ =========
+ 
+diff --git a/bundle/lua-resty-core-0.1.28/t/balancer.t b/bundle/lua-resty-core-0.1.28/t/balancer.t
+index 3e9fb2f..6201b47 100644
+--- a/bundle/lua-resty-core-0.1.28/t/balancer.t
++++ b/bundle/lua-resty-core-0.1.28/t/balancer.t
+@@ -882,3 +882,98 @@ connect() failed (111: Connection refused) while connecting to upstream, client:
+ --- no_error_log
+ [warn]
+ [crit]
++
++
++
++=== TEST 20: set_upstream_tls off
++--- skip_nginx: 5: < 1.7.5
++--- http_config
++    lua_package_path "$TEST_NGINX_LUA_PACKAGE_PATH";
++
++    upstream backend {
++        server 0.0.0.1;
++        balancer_by_lua_block {
++            local b = require "ngx.balancer"
++            b.set_current_peer("127.0.0.1", tonumber(ngx.var.server_port))
++            b.set_upstream_tls(false)
++        }
++        keepalive 1;
++    }
++
++    server {
++        listen $TEST_NGINX_RAND_PORT_1 ssl;
++        ssl_certificate ../../cert/test.crt;
++        ssl_certificate_key ../../cert/test.key;
++
++        server_tokens off;
++        location = /back {
++            return 200 "ok";
++        }
++    }
++--- config
++    location /t {
++        proxy_pass https://backend/back;
++        proxy_http_version 1.1;
++        proxy_set_header Connection "";
++    }
++
++    location /back {
++        echo "Hello world!";
++    }
++--- request
++    GET /t
++--- no_error_log
++[alert]
++[error]
++--- response_body
++Hello world!
++
++--- no_check_leak
++
++
++
++=== TEST 21: set_upstream_tls on
++--- skip_nginx: 5: < 1.7.5
++--- http_config
++    lua_package_path "$TEST_NGINX_LUA_PACKAGE_PATH";
++
++    upstream backend {
++        server 0.0.0.1;
++        balancer_by_lua_block {
++            local b = require "ngx.balancer"
++            b.set_current_peer("127.0.0.1", $TEST_NGINX_RAND_PORT_1)
++            b.set_upstream_tls(false)
++            b.set_upstream_tls(true)
++        }
++
++        keepalive 1;
++    }
++
++    server {
++        listen $TEST_NGINX_RAND_PORT_1 ssl;
++        ssl_certificate ../../cert/test.crt;
++        ssl_certificate_key ../../cert/test.key;
++
++        server_tokens off;
++        location = /back {
++            return 200 "ok";
++        }
++    }
++--- config
++    location /t {
++        proxy_pass https://backend/back;
++        proxy_http_version 1.1;
++        proxy_set_header Connection "";
++    }
++
++    location /back {
++        echo "Hello world!";
++    }
++--- request
++    GET /t
++--- no_error_log
++[alert]
++[error]
++--- response_body chomp
++ok
++--- no_check_leak

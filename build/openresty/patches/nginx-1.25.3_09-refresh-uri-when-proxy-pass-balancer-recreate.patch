@@ -1,0 +1,25 @@
+diff --git a/bundle/nginx-1.25.3/src/http/modules/ngx_http_proxy_module.c b/bundle/nginx-1.25.3/src/http/modules/ngx_http_proxy_module.c
+index 4eb6931..16f5d1a 100644
+--- a/bundle/nginx-1.25.3/src/http/modules/ngx_http_proxy_module.c
++++ b/bundle/nginx-1.25.3/src/http/modules/ngx_http_proxy_module.c
+@@ -1277,6 +1277,19 @@ ngx_http_proxy_create_request(ngx_http_request_t *r)
+ 
+     ctx = ngx_http_get_module_ctx(r, ngx_http_proxy_module);
+ 
++    if (plcf->proxy_lengths == NULL) {
++        ctx->vars = plcf->vars;
++        u->schema = plcf->vars.schema;
++#if (NGX_HTTP_SSL)
++        u->ssl = plcf->ssl;
++#endif
++
++    } else {
++        if (ngx_http_proxy_eval(r, ctx, plcf) != NGX_OK) {
++            return NGX_HTTP_INTERNAL_SERVER_ERROR;
++        }
++    }
++
+     if (method.len == 4
+         && ngx_strncasecmp(method.data, (u_char *) "HEAD", 4) == 0)
+     {
+
