@@ -870,6 +870,10 @@ do
         local field_entity_type = ref.reference
         local field_err_t = err_t[field_name]
 
+        if type(field_err_t) == "string" then
+          field_err_t = entity_type..":"..field_err_t..":"..ref.field
+        end
+
         -- if the foreign value is _not_ a table, attempting to treat it like
         -- an entity or array of entities will only yield confusion.
         --
