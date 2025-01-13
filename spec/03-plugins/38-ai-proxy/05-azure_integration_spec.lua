@@ -30,6 +30,9 @@ for _, strategy in helpers.all_strategies() do
                 local pl_file = require "pl.file"
                 local json = require("cjson.safe")
 
+                local headers = ngx.req.get_headers()
+                ngx.header["X-request-headers"] = json.encode(headers)
+
                 local token = ngx.req.get_headers()["api-key"]
                 if token == "azure-key" then
                   ngx.req.read_body()
@@ -452,6 +455,7 @@ for _, strategy in helpers.all_strategies() do
           headers = {
             ["content-type"] = "application/json",
             ["accept"] = "application/json",
+            ["X-NEED-DELETED"] = "deleted",
           },
           body = pl_file.read("spec/fixtures/ai-proxy/openai/llm-v1-chat/requests/good.json"),
         })
@@ -471,6 +475,8 @@ for _, strategy in helpers.all_strategies() do
           content = "The sum of 1 + 1 is 2.",
           role = "assistant",
         }, json.choices[1].message)
+        --- check that the request headers wired header was clear from kong process
+        assert.is_nil(r.headers["X-NEED-DELETED"])
       end)
 
       it("good request with client right auth", function()

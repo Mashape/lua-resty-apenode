@@ -13,6 +13,18 @@ local string_gsub = string.gsub
 local DRIVER_NAME = "azure"
 --
 
+local do_not_clear_headers = {
+  ["host"] = true,
+  ["content-length"] = true,
+  ["transfer-encoding"] = true,
+  ["connection"] = true,
+  ["accept-encoding"] = true,
+  ["content-type"] = true,
+  ["accept"] = true,
+  ["user-agent"] = true,
+}
+
+
 _M.from_format = openai_driver.from_format
 _M.to_format = openai_driver.to_format
 _M.header_filter_hooks = openai_driver.header_filter_hooks
@@ -137,6 +149,13 @@ function _M.configure_request(conf)
     local exist_value = kong.request.get_header(auth_header_name)
     if exist_value == nil or not conf.auth.allow_override then
       kong.service.request.set_header(auth_header_name, auth_header_value)
+    end
+  end
+
+  local request_headers = kong.request.get_headers()
+  for k, _ in pairs(request_headers) do
+    if not do_not_clear_headers[k] and k ~= auth_header_name then
+      kong.service.request.clear_header(k)
     end
   end
 

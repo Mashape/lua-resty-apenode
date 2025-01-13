@@ -1,0 +1,3 @@
+message: "**ai-proxy**: Fixed an issue where Azure service limit the request customer headers number was not being respected from kong."
+type: bugfix
+scope: Plugin
