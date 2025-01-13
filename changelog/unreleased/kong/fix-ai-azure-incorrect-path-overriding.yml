@@ -1,0 +1,3 @@
+message: "**ai-proxy**: Fixed a bug in the Azure provider where `model.options.upstream_path` overrides would always return 404."
+type: bugfix
+scope: Plugin
