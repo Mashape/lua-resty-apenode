@@ -1,0 +1,3 @@
+message: Fixed an issue where `tls_verify`, `tls_verify_depth` and `ca_certificates` of a service were not included in the upstream keepalive pool name.
+type: bugfix
+scope: Core

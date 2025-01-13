@@ -27,6 +27,7 @@ local fixtures = {
 
 describe("#postgres upstream keepalive", function()
   local proxy_client
+  local ca_certificate, client_cert1, client_cert2
 
   local function start_kong(opts)
     local kopts = {
@@ -51,7 +52,22 @@ describe("#postgres upstream keepalive", function()
       "routes",
       "services",
       "certificates",
+      "ca_certificates",
     })
+
+    ca_certificate = assert(bp.ca_certificates:insert({
+      cert = ssl_fixtures.cert_ca,
+    }))
+
+    client_cert1 = bp.certificates:insert {
+      cert = ssl_fixtures.cert_client,
+      key = ssl_fixtures.key_client,
+    }
+
+    client_cert2 = bp.certificates:insert {
+      cert = ssl_fixtures.cert_client2,
+      key = ssl_fixtures.key_client2,
+    }
 
     -- upstream TLS
     bp.routes:insert {
@@ -61,6 +77,9 @@ describe("#postgres upstream keepalive", function()
         protocol = helpers.mock_upstream_ssl_protocol,
         host = helpers.mock_upstream_hostname,
         port = helpers.mock_upstream_ssl_port,
+        tls_verify = false,
+        tls_verify_depth = 3,
+        ca_certificates = { ca_certificate.id },
       },
     }
 
@@ -71,6 +90,9 @@ describe("#postgres upstream keepalive", function()
         protocol = helpers.mock_upstream_ssl_protocol,
         host = helpers.mock_upstream_hostname,
         port = helpers.mock_upstream_ssl_port,
+        tls_verify = false,
+        tls_verify_depth = 3,
+        ca_certificates = { ca_certificate.id },
       },
     }
 
@@ -100,10 +122,10 @@ describe("#postgres upstream keepalive", function()
       hosts = { "example.test", },
       service = bp.services:insert {
         url = "https://127.0.0.1:16798/",
-        client_certificate = bp.certificates:insert {
-          cert = ssl_fixtures.cert_client,
-          key = ssl_fixtures.key_client,
-        },
+        client_certificate = client_cert1,
+        tls_verify = false,
+        tls_verify_depth = 3,
+        ca_certificates = { ca_certificate.id },
       },
     }
 
@@ -111,10 +133,10 @@ describe("#postgres upstream keepalive", function()
       hosts = { "example2.test", },
       service = bp.services:insert {
         url = "https://127.0.0.1:16798/",
-        client_certificate = bp.certificates:insert {
-          cert = ssl_fixtures.cert_client2,
-          key = ssl_fixtures.key_client2,
-        },
+        client_certificate = client_cert2,
+        tls_verify = false,
+        tls_verify_depth = 3,
+        ca_certificates = { ca_certificate.id },
       },
     }
   end)
@@ -143,12 +165,15 @@ describe("#postgres upstream keepalive", function()
     assert.equal("SNI=one.test", body)
     assert.errlog()
           .has
-          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test]])
+          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                ca_certificate.id .. "|")
 
     assert.errlog()
-          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test, cpool: 0+]])
+          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, cpool: 0+]])
     assert.errlog()
-          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|one.test, size: \d+]])
+          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, size: \d+]])
     assert.errlog()
           .has.line([[lua balancer: keepalive no free connection, cpool: [A-F0-9]+]])
     assert.errlog()
@@ -167,12 +192,15 @@ describe("#postgres upstream keepalive", function()
     assert.equal("SNI=two.test", body)
     assert.errlog()
           .has
-          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|two.test]])
+          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|two.test|false|3|]] ..
+                ca_certificate.id .. "|")
 
     assert.errlog()
-          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|two.test, cpool: 0+]])
+          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|two.test|false|3|]] ..
+                    ca_certificate.id .. [[|, cpool: 0+]])
     assert.errlog()
-          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|two.test, size: \d+]])
+          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|two.test|false|3|]] ..
+                    ca_certificate.id .. [[|, size: \d+]])
     assert.errlog()
           .has.line([[lua balancer: keepalive no free connection, cpool: [A-F0-9]+]])
     assert.errlog()
@@ -225,9 +253,11 @@ describe("#postgres upstream keepalive", function()
     assert.not_equal(fingerprint_1, fingerprint_2)
 
     assert.errlog()
-          .has.line([[enabled connection keepalive \(pool=[0-9.]+|\d+|[0-9.]+:\d+|[a-f0-9-]+]])
+          .has.line([[enabled connection keepalive \(pool=[0-9.]+|\d+|[0-9.]+:\d+|[a-f0-9-]+|false|3|]] ..
+                    ca_certificate.id .. "|" .. client_cert1.id)
     assert.errlog()
-          .has.line([[keepalive get pool, name: [0-9.]+|\d+|[0-9.]+:\d+|[a-f0-9-]+, cpool: 0+]])
+          .has.line([[keepalive get pool, name: [0-9.]+|\d+|[0-9.]+:\d+|[a-f0-9-]+|false|3|]] ..
+                    ca_certificate.id .. "|" .. client_cert1.id .. [[, cpool: 0+]])
     assert.errlog()
           .has.line([[keepalive create pool, name: [0-9.]+|\d+|[0-9.]+:\d+|[a-f0-9-]+, size: \d+]])
     assert.errlog()
@@ -299,12 +329,15 @@ describe("#postgres upstream keepalive", function()
     assert.equal("SNI=one.test", body)
     assert.errlog()
           .has
-          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test]])
+          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                ca_certificate.id .. "|")
 
     assert.errlog()
-          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test, cpool: 0+]])
+          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, cpool: 0+]])
     assert.errlog()
-          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|one.test, size: \d+]])
+          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, size: \d+]])
     assert.errlog()
           .has.line([[keepalive no free connection, cpool: [A-F0-9]+]])
     assert.errlog()
@@ -330,10 +363,12 @@ describe("#postgres upstream keepalive", function()
     assert.equal("SNI=one.test", body)
     assert.errlog()
           .has
-          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test]])
+          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                ca_certificate.id .. "|")
 
     assert.errlog()
-          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test, ]] .. upool_ptr)
+          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, ]] .. upool_ptr)
     assert.errlog()
           .has.line([[keepalive reusing connection [A-F0-9]+, requests: \d+, ]] .. upool_ptr)
     assert.errlog()
@@ -357,18 +392,22 @@ describe("#postgres upstream keepalive", function()
     assert.equal("SNI=one.test", body)
     assert.errlog()
           .has
-          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test]])
+          .line([[enabled connection keepalive \(pool=[A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                ca_certificate.id .. "|")
 
     assert.errlog()
-          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test, cpool: 0+]])
+          .has.line([[keepalive get pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, cpool: 0+]])
     assert.errlog()
-          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|one.test, size: \d+]])
+          .has.line([[keepalive create pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, size: \d+]])
     assert.errlog()
           .has.line([[keepalive no free connection, cpool: [A-F0-9]+]])
     assert.errlog()
           .has.line([[keepalive not saving connection [A-F0-9]+, cpool: [A-F0-9]+]])
     assert.errlog()
-          .has.line([[keepalive free pool, name: [A-F0-9.:]+\|\d+\|one.test, cpool: [A-F0-9]+]])
+          .has.line([[keepalive free pool, name: [A-F0-9.:]+\|\d+\|one.test|false|3|]] ..
+                    ca_certificate.id .. [[|, cpool: [A-F0-9]+]])
 
     assert.errlog()
           .not_has.line([[keepalive saving connection]], true)

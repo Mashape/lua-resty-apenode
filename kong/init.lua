@@ -1383,8 +1383,14 @@ function Kong.balancer()
       -- upstream_host is SNI
       pool = pool .. "|" .. var.upstream_host
 
-      if ctx.service and ctx.service.client_certificate then
-        pool = pool .. "|" .. ctx.service.client_certificate.id
+      local ctx_service = ctx.service
+      if ctx_service then
+        pool = string.format("%s|%s|%s|%s|%s",
+              pool,
+              ctx_service.tls_verify ~= nil and tostring(ctx_service.tls_verify) or "",
+              ctx_service.tls_verify_depth or "",
+              ctx_service.ca_certificates and table.concat(ctx_service.ca_certificates, ",") or "",
+              ctx_service.client_certificate and ctx_service.client_certificate.id or "")
       end
     end
 
