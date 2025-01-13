@@ -17,6 +17,8 @@ local function validate_deltas(deltas, is_full_sync)
   -- generate declarative config table
   local dc_table = { _format_version = "3.0", }
 
+  local db = kong.db
+
   for _, delta in ipairs(deltas) do
     local delta_type = delta.type
     local delta_entity = delta.entity
@@ -28,7 +30,7 @@ local function validate_deltas(deltas, is_full_sync)
 
       -- table: primary key string -> entity
       if not is_full_sync then
-        local schema = kong.db[delta_type].schema
+        local schema = db[delta_type].schema
         local pk = schema:extract_pk_values(delta_entity)
         local pks = pk_string(schema, pk)
 
@@ -38,7 +40,7 @@ local function validate_deltas(deltas, is_full_sync)
   end
 
   -- validate schema
-  local dc_schema = kong.db.declarative_config.schema
+  local dc_schema = db.declarative_config.schema
 
   local ok, err_t = validate(dc_schema, dc_table)
   if not ok then
