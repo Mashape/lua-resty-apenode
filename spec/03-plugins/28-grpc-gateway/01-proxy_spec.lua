@@ -48,10 +48,50 @@ for _, strategy in helpers.each_strategy() do
         },
       })
 
-      assert(helpers.start_kong {
+      local mock_grpc_service = assert(bp.services:insert {
+        name = "mock_grpc_service",
+        url = "http://localhost:8765",
+      })
+
+      local mock_grpc_route = assert(bp.routes:insert {
+        protocols = { "http" },
+        hosts = { "grpc_mock.example" },
+        service = mock_grpc_service,
+        preserve_host = true,
+      })
+
+      assert(bp.plugins:insert {
+        route = mock_grpc_route,
+        name = "grpc-gateway",
+        config = {
+          proto = "./spec/fixtures/grpc/targetservice.proto",
+        },
+      })
+
+      local fixtures = {
+        http_mock = {}
+      }
+      fixtures.http_mock.my_server_block = [[
+        server {
+          server_name myserver;
+          listen 8765;
+
+          location ~ / {
+            content_by_lua_block {
+              local headers = ngx.req.get_headers()
+              ngx.header.content_type = "application/grpc"
+              ngx.header.received_host = headers["Host"]
+              ngx.header.received_te = headers["te"]
+            }
+          }
+        }
+      ]]
+
+      assert(helpers.start_kong({
         database = strategy,
         plugins = "bundled,grpc-gateway",
-      })
+        nginx_conf = "spec/fixtures/custom_nginx.template",
+      }, nil, nil, fixtures))
     end)
 
     before_each(function()
@@ -62,6 +102,35 @@ for _, strategy in helpers.each_strategy() do
       helpers.stop_kong()
       helpers.stop_grpc_target()
     end)
+
+    test("Sets 'TE: trailers'", function()
+      local res, err = proxy_client:post("/v1/echo", {
+        headers = {
+          ["Host"] = "grpc_mock.example",
+          ["Content-Type"] = "application/json",
+        },
+      })
+
+      assert.equal("trailers", res.headers["received-te"])
+      assert.is_nil(err)
+    end)
+
+    test("Ignores user-agent TE", function()
+      -- in grpc-gateway, kong acts as a grpc client on behalf of the client
+      -- (which generally is a web-browser); as such, the Te header must be
+      -- set by kong, which will append trailers to the response body
+      local res, err = proxy_client:post("/v1/echo", {
+        headers = {
+          ["Host"] = "grpc_mock.example",
+          ["Content-Type"] = "application/json",
+          ["TE"] = "chunked",
+        },
+      })
+
+      assert.equal("trailers", res.headers["received-te"])
+      assert.is_nil(err)
+    end)
+
 
     test("main entrypoint", function()
       local res, err = proxy_client:get("/v1/messages/john_doe")

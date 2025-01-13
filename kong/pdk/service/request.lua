@@ -313,14 +313,24 @@ local function new(self)
   -- kong.service.request.set_header("X-Foo", "value")
   request.set_header = function(header, value)
     check_phase(access_rewrite_balancer)
-
     validate_header(header, value)
 
-    if string_lower(header) == "host" then
-      ngx_var.upstream_host = value
-    end
+    local header_lower = string_lower(header)
 
-    if string_lower(header) == ":authority" then
+    if header_lower == "host" then
+      ngx_var.upstream_host = value
+      return
+
+    elseif header_lower == "te" then
+      if (ngx_var.upstream_scheme == "grpc" or
+         ngx_var.upstream_scheme == "grpcs") and value ~= "trailers" then
+         return nil, "grpc requires TE to be set to trailers"
+      end
+
+      ngx.var.upstream_te = value
+      return
+
+    elseif header_lower == ":authority" then
       if ngx_var.upstream_scheme == "grpc" or
          ngx_var.upstream_scheme == "grpcs"
       then

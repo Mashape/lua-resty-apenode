@@ -1,0 +1,3 @@
+message: "**grpc-web** and **grpc-gateway**: Fixed a bug where the `TE` (transfer-encoding) header would not be sent to the upstream gRPC servers when `grpc-web` or `grpc-gateweay` are in use."
+type: bugfix
+scope: Plugin
