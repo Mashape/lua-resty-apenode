@@ -11,7 +11,7 @@ local pretty_print_error = declarative.pretty_print_error
 
 local function validate_deltas(deltas, is_full_sync)
 
-  -- genearte deltas table mapping primary key string to entity item
+  -- generate deltas table mapping primary key string to entity item
   local deltas_map = {}
 
   -- generate declarative config table
