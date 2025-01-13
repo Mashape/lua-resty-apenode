@@ -10,6 +10,7 @@ local cjson_decode = cjson.decode
 local SIGTERM = 15
 
 
+local server_rt = {} -- store runtime of plugin server like proc
 local _M = {}
 
 
@@ -150,16 +151,19 @@ local function pluginserver_timer(premature, server_def)
     end
 
     kong.log.notice("[pluginserver] starting pluginserver process for ", server_def.name or "")
-    server_def.proc = assert(ngx_pipe.spawn("exec " .. server_def.start_command, {
+    local proc = assert(ngx_pipe.spawn("exec " .. server_def.start_command, {
       merge_stderr = true,
     }))
+    server_rt[server_def.name] = {
+      proc = proc,
+    }
     next_spawn = ngx.now() + 1
-    server_def.proc:set_timeouts(nil, nil, nil, 0)     -- block until something actually happens
-    kong.log.notice("[pluginserver] started, pid ", server_def.proc:pid())
+    proc:set_timeouts(nil, nil, nil, 0)     -- block until something actually happens
+    kong.log.notice("[pluginserver] started, pid ", proc:pid())
 
     while true do
-      grab_logs(server_def.proc, server_def.name)
-      local ok, reason, status = server_def.proc:wait()
+      grab_logs(proc, server_def.name)
+      local ok, reason, status = proc:wait()
 
       -- exited with a non 0 status
       if ok == false and reason == "exit" and status == 127 then
@@ -205,12 +209,13 @@ function _M.stop_pluginservers()
   -- only worker 0 manages plugin server processes
   if worker_id() == 0 then -- TODO move to privileged worker?
     for _, server_def in ipairs(kong_config.pluginservers) do
-      if server_def.proc then
-        local ok, err = server_def.proc:kill(SIGTERM)
+      local server = server_rt[server_def.name]
+      if server and server.proc then
+        local ok, err = server.proc:kill(SIGTERM)
         if not ok then
           kong.log.error("[pluginserver] failed to stop pluginserver '", server_def.name, ": ", err)
         end
-        kong.log.notice("[pluginserver] successfully stopped pluginserver '", server_def.name, "', pid ", server_def.proc:pid())
+        kong.log.notice("[pluginserver] successfully stopped pluginserver '", server_def.name, "', pid ", server.proc:pid())
       end
     end
   end
