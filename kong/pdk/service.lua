@@ -9,6 +9,7 @@
 
 local balancer = require "kong.runloop.balancer"
 local phase_checker = require "kong.pdk.private.phases"
+local hostname_type = require "kong.tools.ip".hostname_type
 
 
 local type = type
@@ -103,6 +104,12 @@ local function new()
     ngx.var.upstream_host = host
 
     local ctx = ngx.ctx
+    local hostname_typ = hostname_type(host)
+
+    if hostname_typ == "ipv4" or hostname_typ == "ipv6" then
+      ctx.balancer_data.ip = host
+    end
+
     ctx.balancer_data.host = host
     ctx.balancer_data.port = port
   end

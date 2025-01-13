@@ -45,7 +45,7 @@ host must be a string
                 host = "foo.xyz"
             }
 
-            local ok = pdk.service.set_target("example.com", 123)
+            local ok = pdk.service.set_target("example.test", 123)
 
             ngx.say(tostring(ok))
             ngx.say("host: ", ngx.ctx.balancer_data.host)
@@ -55,7 +55,7 @@ host must be a string
 GET /t
 --- response_body
 nil
-host: example.com
+host: example.test
 --- no_error_log
 [error]
 
@@ -69,7 +69,7 @@ host: example.com
             local PDK = require "kong.pdk"
             local pdk = PDK.new()
 
-            local pok, err = pcall(pdk.service.set_target, "example.com", "foo")
+            local pok, err = pcall(pdk.service.set_target, "example.test", "foo")
             ngx.say(err)
         }
     }
@@ -90,7 +90,7 @@ port must be an integer
             local PDK = require "kong.pdk"
             local pdk = PDK.new()
 
-            local pok, err = pcall(pdk.service.set_target, "example.com", 123.4)
+            local pok, err = pcall(pdk.service.set_target, "example.test", 123.4)
 
             ngx.say(err)
         }
@@ -112,9 +112,9 @@ port must be an integer
             local PDK = require "kong.pdk"
             local pdk = PDK.new()
 
-            local pok, err = pcall(pdk.service.set_target, "example.com", -1)
+            local pok, err = pcall(pdk.service.set_target, "example.test", -1)
             ngx.say(err)
-            local pok, err = pcall(pdk.service.set_target, "example.com", 70000)
+            local pok, err = pcall(pdk.service.set_target, "example.test", 70000)
             ngx.say(err)
         }
     }
@@ -143,7 +143,7 @@ port must be an integer between 0 and 65535: given 70000
                 port = 8000
             }
 
-            local ok = pdk.service.set_target("example.com", 1234)
+            local ok = pdk.service.set_target("example.test", 1234)
 
             ngx.say(tostring(ok))
             ngx.say("port: ", ngx.ctx.balancer_data.port)
@@ -153,6 +153,76 @@ port must be an integer between 0 and 65535: given 70000
 GET /t
 --- response_body
 nil
+port: 1234
+--- no_error_log
+[error]
+
+
+
+=== TEST 7: service.set_target() sets the balancer IP if host is an IPv4 address
+--- http_config eval: $t::Util::HttpConfig
+--- config
+    location = /t {
+
+        set $upstream_host '';
+
+        content_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            ngx.ctx.balancer_data = {
+                port = 8000
+            }
+
+            local ok = pdk.service.set_target("192.168.2.4", 1234)
+
+            ngx.say(tostring(ok))
+            ngx.say("ip: ", ngx.ctx.balancer_data.ip)
+            ngx.say("host: ", ngx.ctx.balancer_data.host)
+            ngx.say("port: ", ngx.ctx.balancer_data.port)
+        }
+    }
+--- request
+GET /t
+--- response_body
+nil
+ip: 192.168.2.4
+host: 192.168.2.4
+port: 1234
+--- no_error_log
+[error]
+
+
+
+=== TEST 8: service.set_target() sets the balancer IP if host is an IPv6 address
+--- http_config eval: $t::Util::HttpConfig
+--- config
+    location = /t {
+
+        set $upstream_host '';
+
+        content_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            ngx.ctx.balancer_data = {
+                port = 8000
+            }
+
+            local ok = pdk.service.set_target("0:0:0:0:0:ffff:192.168.2.4", 1234)
+
+            ngx.say(tostring(ok))
+            ngx.say("ip: ", ngx.ctx.balancer_data.ip)
+            ngx.say("host: ", ngx.ctx.balancer_data.host)
+            ngx.say("port: ", ngx.ctx.balancer_data.port)
+        }
+    }
+--- request
+GET /t
+--- response_body
+nil
+ip: 0:0:0:0:0:ffff:192.168.2.4
+host: 0:0:0:0:0:ffff:192.168.2.4
 port: 1234
 --- no_error_log
 [error]

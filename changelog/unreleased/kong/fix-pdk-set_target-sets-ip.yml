@@ -1,0 +1,5 @@
+message: |
+  `kong.pdk.service.set_target` function now also sets `ngx.ctx.balancer_data.ip`
+  if the `host` argument is an IPv4 or IPv6 address.
+type: bugfix
+scope: PDK
