@@ -1,6 +1,9 @@
 require("spec.helpers") -- for kong.log
 local declarative = require "kong.db.declarative"
 local conf_loader = require "kong.conf_loader"
+local uuid = require "kong.tools.uuid"
+
+local pl_file = require "pl.file"
 
 local null = ngx.null
 
@@ -62,6 +65,45 @@ keyauth_credentials:
       local key = unique_field_key("services", "123", "fieldname", "test", true)
       assert.equals("U|services|fieldname|123|" .. sha256_hex("test"), key)
     end)
+  end)
+
+  it("parse nested entities correctly", function ()
+    -- This test case is to make sure that when a relatively
+    -- "raw" input of declarative config is given, the dc parser
+    -- can generate correct UUIDs for those nested entites.
+    --
+    -- See https://github.com/Kong/kong/pull/14082 for more details.
+    local cluster_cert_content = assert(pl_file.read("spec/fixtures/kong_clustering.crt"))
+    local cluster_key_content = assert(pl_file.read("spec/fixtures/kong_clustering.key"))
+    local cert_id = uuid.uuid()
+    local sni_id = uuid.uuid()
+    local dc = declarative.new_config(conf_loader())
+    local entities, err = dc:parse_table(
+      {
+        _format_version = "3.0",
+        certificates = { {
+            cert = cluster_cert_content,
+            id = cert_id,
+            key = cluster_key_content,
+            snis = { {
+                id = sni_id,
+                name = "alpha.example"
+              } }
+          } },
+        consumers = { {
+            basicauth_credentials = { {
+                password = "qwerty",
+                username = "qwerty"
+              } },
+            username = "consumerA"
+          } }
+      }
+    )
+
+    assert.is_nil(err)
+    assert.is_table(entities)
+    assert.is_not_nil(entities.snis)
+    assert.same('alpha.example', entities.certificates[cert_id].snis[1].name)
   end)
 
 end)
