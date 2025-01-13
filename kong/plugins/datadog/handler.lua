@@ -28,10 +28,11 @@ local get_consumer_id = {
 }
 
 
-local function compose_tags(service_name, status, consumer_id, tags, conf)
+local function compose_tags(service_name, status, consumer_id, tags, conf, route_name)
   local result = {
     (conf.service_name_tag or "name") .. ":" .. service_name,
-    (conf.status_tag or "status") .. ":" .. status
+    (conf.status_tag or "status") .. ":" .. status,
+    route_name and route_name ~= "" and ((conf.route_name_tag or "route") .. ":" .. route_name)
   }
 
   if consumer_id ~= nil then
@@ -86,7 +87,10 @@ local function send_entries_to_datadog(conf, messages)
                                 message.service and gsub(message.service.name ~= null and
                                 message.service.name or message.service.host, "%.", "_") or "",
                                 message.response and message.response.status or "-",
-                                consumer_id, metric_config.tags, conf)
+                                consumer_id, metric_config.tags,
+                                conf,
+                                message.route and (message.route.name and gsub(message.route.name ~= null and
+                                message.route.name, "%.", "_") or message.route.id) or "")
 
       logger:send_statsd(stat_name, stat_value,
                          logger.stat_types[metric_config.stat_type],
