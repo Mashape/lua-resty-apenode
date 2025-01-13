@@ -56,6 +56,8 @@ function _M.new(conf, node_id)
     cluster_cert = assert(clustering_tls.get_cluster_cert(conf)),
     cluster_cert_key = assert(clustering_tls.get_cluster_cert_key(conf)),
     callbacks = callbacks.new(),
+
+    batch_size = 0,  -- rpc batching
   }
 
   if conf.role == "control_plane" then
@@ -622,6 +624,12 @@ end
 
 function _M:get_peer_info(node_id)
   return self.client_info[node_id]
+end
+
+
+function _M:set_batch(n)
+  assert(type(n) == "number" and n >= 0)
+  self.batch_size = n
 end
 
 
