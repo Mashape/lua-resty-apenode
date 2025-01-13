@@ -14,6 +14,7 @@ local null = ngx.null
 local type = type
 local next = next
 local pairs = pairs
+local fmt = string.format
 local yield = require("kong.tools.yield").yield
 local ipairs = ipairs
 local insert = table.insert
@@ -331,7 +332,7 @@ end
 
 
 local function ws_id_for(item)
-  if item.ws_id == nil or item.ws_id == ngx.null then
+  if item.ws_id == nil or item.ws_id == null then
     return "*"
   end
   return item.ws_id
@@ -413,7 +414,7 @@ local function populate_references(input, known_entities, by_id, by_key, expecte
       local key = use_key and item[endpoint_key]
 
       local failed = false
-      if key and key ~= ngx.null then
+      if key and key ~= null then
         local ok = add_to_by_key(by_key, entity_schema, item, entity, key)
         if not ok then
           add_error(errs, parent_entity, parent_idx, entity, i,
@@ -503,6 +504,75 @@ local function validate_references(self, input)
   end
 
   return by_id, by_key
+end
+
+
+function DeclarativeConfig.validate_references_full(self, input)
+  return validate_references(self, input)
+end
+
+
+function DeclarativeConfig.validate_references_sync(deltas, deltas_map)
+  local errs = {}
+
+  for _, delta in ipairs(deltas) do
+    local item_type = delta.type
+    local item = delta.entity
+    local ws_id = delta.ws_id or kong.default_workspace
+
+    local foreign_refs = foreign_references[item_type]
+
+    if not item or item == null or not foreign_refs then
+      goto continue
+    end
+
+    for k, v in pairs(item) do
+
+      -- Try to check if item's some foreign key exists in the deltas or LMDB.
+      -- For example, `item[k]` could be `<router_entity>["service"]`, we need
+      -- to find the referenced foreign service entity for this router entity.
+
+      local foreign_entity = foreign_refs[k]
+
+      if foreign_entity and v ~= null then  -- k is foreign key
+
+        local db = kong.db[foreign_entity]
+
+        -- try to find it in deltas
+        local pks = DeclarativeConfig.pk_string(db.schema, v)
+        local fvalue = deltas_map[pks]
+        if fvalue then
+          goto found
+        end
+
+        -- try to find it in DB (LMDB)
+        fvalue, _ = db:select(v, { workspace = ws_id })
+
+        -- could not find its foreign reference
+        if not fvalue then
+          errs[item_type] = errs[item_type] or {}
+          errs[item_type][foreign_entity] = errs[item_type][foreign_entity] or {}
+
+          local msg = fmt("could not find %s's foreign refrences %s (%s)",
+                          item_type, foreign_entity,
+                          (type(v) == "string" and v or cjson_encode(v)))
+
+          insert(errs[item_type][foreign_entity], msg)
+        end
+      end
+
+      ::found::
+    end
+
+    ::continue::
+  end
+
+
+  if next(errs) then
+    return nil, errs
+  end
+
+  return true
 end
 
 
@@ -781,15 +851,7 @@ local function get_unique_key(schema, entity, field, value)
 end
 
 
-local function flatten(self, input)
-  -- manually set transform here
-  -- we can't do this in the schema with a `default` because validate
-  -- needs to happen before process_auto_fields, which
-  -- is the one in charge of filling out default values
-  if input._transform == nil then
-    input._transform = true
-  end
-
+function DeclarativeConfig.validate(self, input)
   local ok, err = self:validate(input)
   if not ok then
     yield()
@@ -810,6 +872,24 @@ local function flatten(self, input)
     end
 
     yield()
+  end
+
+  return true
+end
+
+
+local function flatten(self, input)
+  -- manually set transform here
+  -- we can't do this in the schema with a `default` because validate
+  -- needs to happen before process_auto_fields, which
+  -- is the one in charge of filling out default values
+  if input._transform == nil then
+    input._transform = true
+  end
+
+  local ok, err = DeclarativeConfig.validate(self, input)
+  if not ok then
+    return nil, err
   end
 
   generate_ids(input, self.known_entities)
@@ -860,7 +940,7 @@ local function flatten(self, input)
 
         if field.unique then
           local flat_value = flat_entry[name]
-          if flat_value and flat_value ~= ngx.null then
+          if flat_value and flat_value ~= null then
             local unique_key = get_unique_key(schema, entry, field, flat_value)
             uniques[name] = uniques[name] or {}
             if uniques[name][unique_key] then

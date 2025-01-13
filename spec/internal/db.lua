@@ -261,6 +261,10 @@ end
 -- custom plugins as loaded.
 -- @param vaults (optional) vault configuration to use.
 -- @param skip_migrations (optional) if true, migrations will not be run.
+-- @param expand_foreigns (optional) If true, it will prevent converting foreign
+-- keys from primary key value pairs to strings. For example, it will keep the
+-- foreign key of the router entity as `service = { id = "<uuid>" }` instead of
+-- converting it to `service = "<uuid>"`.
 -- @return BluePrint, DB
 -- @usage
 -- local PLUGIN_NAME = "my_fancy_plugin"
@@ -277,7 +281,7 @@ end
 --   route = { id = route1.id },
 --   config = {},
 -- }
-local function get_db_utils(strategy, tables, plugins, vaults, skip_migrations)
+local function get_db_utils(strategy, tables, plugins, vaults, skip_migrations, expand_foreigns)
   strategy = strategy or conf.database
   conf.database = strategy  -- overwrite kong.configuration.database
 
@@ -343,7 +347,7 @@ local function get_db_utils(strategy, tables, plugins, vaults, skip_migrations)
     bp = assert(Blueprints.new(db))
     dcbp = nil
   else
-    bp = assert(dc_blueprints.new(db))
+    bp = assert(dc_blueprints.new(db, expand_foreigns))
     dcbp = bp
   end
 

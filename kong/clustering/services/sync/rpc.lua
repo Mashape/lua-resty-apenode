@@ -10,6 +10,7 @@ local isempty = require("table.isempty")
 local events = require("kong.runloop.events")
 
 
+local validate_deltas = require("kong.clustering.services.sync.validate").validate_deltas
 local insert_entity_for_txn = declarative.insert_entity_for_txn
 local delete_entity_for_txn = declarative.delete_entity_for_txn
 local DECLARATIVE_HASH_KEY = constants.DECLARATIVE_HASH_KEY
@@ -206,6 +207,7 @@ local function do_sync()
     return nil, "default namespace does not exist inside params"
   end
 
+  local wipe = ns_delta.wipe
   local deltas = ns_delta.deltas
 
   if not deltas then
@@ -231,9 +233,14 @@ local function do_sync()
   end
   assert(type(kong.default_workspace) == "string")
 
+  -- validate deltas
+  local ok, err = validate_deltas(deltas, wipe)
+  if not ok then
+    return nil, err
+  end
+
   local t = txn.begin(512)
 
-  local wipe = ns_delta.wipe
   if wipe then
     t:db_drop(false)
   end
