@@ -1,5 +1,4 @@
 local helpers = require "spec.helpers"
-local pl_file = require "pl.file"
 local txn = require "resty.lmdb.transaction"
 local declarative = require "kong.db.declarative"
 
@@ -47,7 +46,7 @@ local function setup_bp()
   lmdb_drop()
 
   -- init bp / db ( true for expand_foreigns)
-  bp, db = helpers.get_db_utils("off", nil, nil, nil, nil, true)
+  local bp, db = helpers.get_db_utils("off", nil, nil, nil, nil, true)
 
   -- init workspaces
   local workspaces = require "kong.workspaces"
@@ -68,9 +67,9 @@ describe("[delta validations]",function()
     local bp = setup_bp()
 
     -- add entities
-    local ws = db_insert(bp, "workspaces", { name = "ws-001" })
+    db_insert(bp, "workspaces", { name = "ws-001" })
     local service = db_insert(bp, "services", { name = "service-001", })
-    local route = db_insert(bp, "routes", {
+    db_insert(bp, "routes", {
       name = "route-001",
       paths = { "/mock" },
       service = { id = service.id },
@@ -79,8 +78,6 @@ describe("[delta validations]",function()
     local deltas = declarative.export_config_sync()
 
     for _, delta in ipairs(deltas) do
-      local delta_entity = delta.entity
-      local delta_type = delta.type
       local ws_id = delta.ws_id
       assert(ws_id)
     end
@@ -90,9 +87,9 @@ describe("[delta validations]",function()
     local bp = setup_bp()
 
     -- add entities
-    local ws = db_insert(bp, "workspaces", { name = "ws-001" })
+    db_insert(bp, "workspaces", { name = "ws-001" })
     local service = db_insert(bp, "services", { name = "service-001", })
-    local route = db_insert(bp, "routes", {
+    db_insert(bp, "routes", {
       name = "route-001",
       paths = { "/mock" },
       service = { id = service.id },
@@ -108,9 +105,8 @@ describe("[delta validations]",function()
     local bp = setup_bp()
 
     -- add entities
-    local ws = db_insert(bp, "workspaces", { name = "ws-001" })
-    local service = db_insert(bp, "services", { name = "service-001", })
-    local route = db_insert(bp, "routes", {
+    db_insert(bp, "workspaces", { name = "ws-001" })
+    db_insert(bp, "routes", {
       name = "route-001",
       paths = { "/mock" },
       -- unmatched service
@@ -118,17 +114,21 @@ describe("[delta validations]",function()
     })
 
     local deltas = declarative.export_config_sync()
+    local _, err = validate_deltas(deltas, false)
+    assert.matches(
+      "entry 1 of 'services': could not find routes's foreign refrences services",
+      err)
   end)
 
   it("100 routes -> 1 services: matched foreign keys", function()
     local bp = setup_bp()
 
     -- add entities
-    local ws = db_insert(bp, "workspaces", { name = "ws-001" })
+    db_insert(bp, "workspaces", { name = "ws-001" })
     local service = db_insert(bp, "services", { name = "service-001", })
 
     for i = 1, 100 do
-      local route = db_insert(bp, "routes", {
+      db_insert(bp, "routes", {
         name = "route-001",
         paths = { "/mock" },
         -- unmatched service
@@ -145,12 +145,12 @@ describe("[delta validations]",function()
     local bp = setup_bp()
 
     -- add entities
-    local ws = db_insert(bp, "workspaces", { name = "ws-001" })
+    db_insert(bp, "workspaces", { name = "ws-001" })
 
     for i = 1, 100 do
       local service = db_insert(bp, "services", { name = "service-001", })
 
-      local route = db_insert(bp, "routes", {
+      db_insert(bp, "routes", {
         name = "route-001",
         paths = { "/mock" },
         -- unmatched service
@@ -167,10 +167,10 @@ describe("[delta validations]",function()
     local bp = setup_bp()
 
     -- add entities
-    local ws = db_insert(bp, "workspaces", { name = "ws-001" })
+    db_insert(bp, "workspaces", { name = "ws-001" })
 
     for i = 1, 100 do
-      local route = db_insert(bp, "routes", {
+      db_insert(bp, "routes", {
         name = "route-001",
         paths = { "/mock" },
         -- unmatched service
@@ -179,7 +179,7 @@ describe("[delta validations]",function()
     end
 
     local deltas = declarative.export_config_sync()
-    local ok, err = validate_deltas(deltas, false)
+    local _, err = validate_deltas(deltas, false)
     for i = 1, 100 do
       assert.matches(
         "entry " .. i .. " of 'services': " ..
