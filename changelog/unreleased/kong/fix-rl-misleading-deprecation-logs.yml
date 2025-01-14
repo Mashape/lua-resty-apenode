@@ -1,0 +1,3 @@
+message: "**Rate-Limiting**: Fixed an issue of DP reporting that deprecated config fields are used when configuration from CP is pushed"
+type: bugfix
+scope: Plugin
