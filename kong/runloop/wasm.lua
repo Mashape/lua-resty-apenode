@@ -53,6 +53,7 @@ local ipairs = ipairs
 local type = type
 local assert = assert
 local insert = table.insert
+local sort = table.sort
 local cjson_encode = cjson.encode
 local cjson_decode = cjson.decode
 local fmt = string.format
@@ -116,6 +117,21 @@ local STATUS_ENABLED = "wasm support is enabled"
 local ENABLED = false
 local STATUS = STATUS_DISABLED
 
+local function filter_plugin_compare(a, b)
+  if a.name ~= b.name then
+    return a.name < b.name
+  end
+
+  if a.updated_at and b.updated_at and a.updated_at ~= b.updated_at then
+    return a.updated_at < b.updated_at
+  end
+
+  if a.created_at and b.created_at and a.created_at ~= b.created_at then
+    return a.created_at < b.created_at
+  end
+
+  return a.id < b.id
+end
 
 local hash_chain
 do
@@ -485,26 +501,34 @@ local function rebuild_state(db, version, old_state)
 
   local plugin_pagesize = db.plugins.pagination.max_page_size
 
+  local filter_plugins = {}
+
   for plugin, err in db.plugins:each(plugin_pagesize, GLOBAL_QUERY_OPTS) do
     if err then
       return nil, "failed iterating plugins: " .. tostring(err)
     end
 
     if _M.filters_by_name[plugin.name] and plugin.enabled then
-      local chain = get_or_insert_chain(chains, {
-        id = uuid.uuid(),
-        enabled = true,
-        route = plugin.route,
-        service = plugin.service,
-        filters = {},
-      })
-
-      insert(chain.filters, {
-        name = plugin.name,
-        enabled = true,
-        config = serialize_configuration(plugin.config),
-      })
+      insert(filter_plugins, plugin)
     end
+  end
+
+  sort(filter_plugins, filter_plugin_compare)
+
+  for _, plugin in ipairs(filter_plugins) do
+    local chain = get_or_insert_chain(chains, {
+      id = uuid.uuid(),
+      enabled = true,
+      route = plugin.route,
+      service = plugin.service,
+      filters = {},
+    })
+
+    insert(chain.filters, {
+      name = plugin.name,
+      enabled = true,
+      config = serialize_configuration(plugin.config),
+    })
   end
 
   local routes = db.routes
