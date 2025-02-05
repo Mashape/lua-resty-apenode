@@ -72,7 +72,7 @@ local function expect_field_error(res, field, err)
 end
 
 
-describe("#wasm declarative config", function()
+describe("#wasm declarative config (db = #off)", function()
   local admin
   local proxy
   local header_name = "x-wasm-dbless"
@@ -172,7 +172,7 @@ describe("#wasm declarative config", function()
 end)
 
 
-describe("#wasm declarative config (no installed filters)", function()
+describe("#wasm declarative config (no installed filters) (db = #off)", function()
   local tmp_dir
 
   lazy_setup(function()
@@ -265,7 +265,7 @@ describe("#wasm declarative config (no installed filters)", function()
   end)
 end)
 
-describe("#wasm declarative config (wasm = off)", function()
+describe("#wasm declarative config (wasm = off) (db = #off)", function()
   describe("POST /config", function()
     local client
 

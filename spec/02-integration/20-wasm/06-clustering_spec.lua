@@ -237,7 +237,7 @@ describe("#wasm - hybrid mode #postgres" .. " inc_sync=" .. inc_sync, function()
           res:read_body()
 
           if res.status ~= 200 then
-            return {
+            return nil, {
               msg = "bad http status",
               exp = 200,
               got = res.status,
@@ -269,7 +269,7 @@ describe("#wasm - hybrid mode #postgres" .. " inc_sync=" .. inc_sync, function()
           res:read_body()
 
           if res.status ~= 200 then
-            return {
+            return nil, {
               msg = "bad http status",
               exp = 200,
               got = res.status,
