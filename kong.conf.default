@@ -2037,6 +2037,13 @@
                         # use the window protocol + host and append the
                         # resolved admin_listen HTTP/HTTPS port.
 
+#admin_gui_csp_header = on  # Content-Security-Policy (CSP) header for Kong Manager
+                            #
+                            # This configuration parameter controls the presence of the
+                            # `Content-Security-Policy` header while serving Kong Manager.
+                            #
+                            # Setting this parameter to `off` to turn off the CSP header.
+
 #admin_gui_ssl_cert =   # The SSL certificate for `admin_gui_listen` values
                         # with SSL enabled.
                         #

@@ -211,6 +211,7 @@ untrusted_lua_sandbox_environment =
 admin_gui_url =
 admin_gui_path = /
 admin_gui_api_url = NONE
+admin_gui_csp_header = on
 
 openresty_path =
 

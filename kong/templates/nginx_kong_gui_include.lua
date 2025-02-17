@@ -80,6 +80,14 @@ location ~* ^$(admin_gui_path_prefix)(?<path>/.*)?$ {
     gzip_types text/plain text/css application/json application/javascript;
 
     add_header Cache-Control 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0';
+
+> if csp_connect_src then
+>   -- [CSP] 'wasm-unsafe-eval' in script-src is required for atc-router-wasm
+>   -- [CSP] TODO: 'unsafe-inline' is still required for style-src because of monaco-editor. See: https://github.com/microsoft/monaco-editor/issues/271
+    add_header Content-Security-Policy "default-src 'self'; connect-src $(csp_connect_src); img-src 'self' data:; script-src 'self' 'wasm-unsafe-eval'; script-src-elem 'self' https://buttons.github.io/buttons.js; style-src 'self' 'unsafe-inline';";
+> end
+
+    add_header Referrer-Policy 'strict-origin-when-cross-origin';
     add_header X-Frame-Options 'sameorigin';
     add_header X-XSS-Protection '1; mode=block';
     add_header X-Content-Type-Options 'nosniff';

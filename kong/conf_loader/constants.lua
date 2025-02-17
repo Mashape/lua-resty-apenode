@@ -569,6 +569,7 @@ local CONF_PARSERS = {
   admin_gui_url = { typ = "array" },
   admin_gui_path = { typ = "string" },
   admin_gui_api_url = { typ = "string" },
+  admin_gui_csp_header = { typ = "boolean" },
 
   request_debug = { typ = "boolean" },
   request_debug_token = { typ = "string" },

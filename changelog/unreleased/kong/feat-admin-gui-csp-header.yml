@@ -1,0 +1,5 @@
+message: >-
+  Kong Manager will now be served with the Content-Security-Policy (CSP) header by default. The CSP
+  header can be turned off with a new configuration parameter `admin_gui_csp_header`.
+type: feature
+scope: Core
