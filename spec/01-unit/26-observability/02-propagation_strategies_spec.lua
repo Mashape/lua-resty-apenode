@@ -1637,6 +1637,114 @@ local test_data = { {
     },
     err = "gcp injector context is invalid: field span_id not found in context"
   } }
+}, {
+    extractor = "instana",
+    injector = "instana",
+    headers_data = { {
+      description = "base case",
+      extract = true,
+      inject = true,
+      trace_id = trace_id_16,
+      headers = {
+        ["x-instana-t"] = trace_id_16,
+        ["x-instana-s"] = span_id_8_1,
+        ["x-instana-l"] = "1",
+      },
+      ctx = {
+        trace_id = trace_id_16,
+        span_id = span_id_8_1,
+        should_sample = true,
+        trace_id_original_size = 16,
+      }
+    }, {
+      description = "sampled = false",
+      extract = true,
+      inject = true,
+      trace_id = trace_id_16,
+      headers = {
+        ["x-instana-t"] = trace_id_16,
+        ["x-instana-s"] = span_id_8_1,
+        ["x-instana-l"] = "0",
+      },
+      ctx = {
+        trace_id = trace_id_16,
+        span_id = span_id_8_1,
+        should_sample = false,
+        trace_id_original_size = 16,
+      }
+    }, {
+      description = "8B trace id",
+      extract = true,
+      inject = true,
+      trace_id = trace_id_8,
+      headers = {
+        ["x-instana-t"] = trace_id_8,
+        ["x-instana-s"] = span_id_8_1,
+        ["x-instana-l"] = "0",
+      },
+      ctx = {
+        trace_id = padding_prefix .. trace_id_8,
+        span_id = span_id_8_1,
+        should_sample = false,
+        trace_id_original_size = 8,
+      }
+    }, {
+      description = "big 16B trace ID",
+      inject = true,
+      trace_id = big_trace_id_16,
+      headers = {
+        ["x-instana-t"]  = big_trace_id_16,
+        ["x-instana-s"] = span_id_8_1,
+      },
+      ctx = {
+        trace_id = big_trace_id_16,
+        span_id = span_id_8_1,
+      }
+    }, {
+      description = "invalid flag",
+      extractor = true,
+      trace_id = trace_id_16,
+      headers = {
+        ["x-instana-t"] = trace_id_16,
+        ["x-instana-s"] = span_id_8_1,
+        ["x-instana-l"] = "5",
+      },
+      ctx = {
+        trace_id = big_trace_id_16,
+        span_id = span_id_8_1,
+        should_sample = true,
+      }
+    },{ -- extraction error cases
+    description = "invalid trace ID (non hex)",
+    extract = true,
+    trace_id = "abcdefghijklmnop",
+    headers = {
+      ["x-instana-t"] = "abcdefghijklmnop",
+      ["x-instana-s"] = span_id_8_1,
+    },
+    err = "x-instana-t header invalid; ignoring."
+  }, {
+    description = "invalid trace ID (too long)",
+    extract = true,
+    headers = {
+      ["x-instana-t"] = too_long_id,
+    },
+    err = "x-instana-t header invalid; ignoring."
+  }, {
+    description = "invalid trace ID (too short)",
+    extract = true,
+    headers = {
+      ["x-instana-t"] = "abc",
+    },
+    err = "x-instana-t header invalid; ignoring."
+  }, {
+    description = "empty header",
+    extract = true,
+    headers = {
+      ["x-instana-t"] = "",
+    },
+    err = "x-instana-t header invalid; ignoring."
+  },}
 } }
 
 

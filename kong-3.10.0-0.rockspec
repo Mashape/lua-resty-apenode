@@ -699,6 +699,7 @@ build = {
     ["kong.observability.tracing.propagation.extractors.gcp"] = "kong/observability/tracing/propagation/extractors/gcp.lua",
     ["kong.observability.tracing.propagation.extractors.aws"] = "kong/observability/tracing/propagation/extractors/aws.lua",
     ["kong.observability.tracing.propagation.extractors.datadog"] = "kong/observability/tracing/propagation/extractors/datadog.lua",
+    ["kong.observability.tracing.propagation.extractors.instana"] = "kong/observability/tracing/propagation/extractors/instana.lua",
     ["kong.observability.tracing.propagation.injectors._base"] = "kong/observability/tracing/propagation/injectors/_base.lua",
     ["kong.observability.tracing.propagation.injectors.w3c"] = "kong/observability/tracing/propagation/injectors/w3c.lua",
     ["kong.observability.tracing.propagation.injectors.b3"] = "kong/observability/tracing/propagation/injectors/b3.lua",
@@ -708,6 +709,7 @@ build = {
     ["kong.observability.tracing.propagation.injectors.gcp"] = "kong/observability/tracing/propagation/injectors/gcp.lua",
     ["kong.observability.tracing.propagation.injectors.aws"] = "kong/observability/tracing/propagation/injectors/aws.lua",
     ["kong.observability.tracing.propagation.injectors.datadog"] = "kong/observability/tracing/propagation/injectors/datadog.lua",
+    ["kong.observability.tracing.propagation.injectors.instana"] = "kong/observability/tracing/propagation/injectors/instana.lua",
     ["kong.observability.tracing.request_id"] = "kong/observability/tracing/request_id.lua",
     ["kong.observability.tracing.tracing_context"] = "kong/observability/tracing/tracing_context.lua",
 

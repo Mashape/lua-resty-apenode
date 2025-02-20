@@ -1,0 +1,4 @@
+message: |
+    **OpenTelemetry**: include instana header support in propagation
+type: feature
+scope: Plugin

@@ -78,7 +78,7 @@ return {
                 old_default = "preserve" },
               required = false,
               default = "preserve",
-              one_of = { "preserve", "ignore", "b3", "b3-single", "w3c", "jaeger", "ot", "aws", "gcp", "datadog" } } },
+              one_of = { "preserve", "ignore", "b3", "b3-single", "w3c", "jaeger", "ot", "aws", "gcp", "datadog", "instana" } } },
         { sampling_rate = {
           description = "Tracing sampling rate for configuring the probability-based sampler. When set, this value supersedes the global `tracing_sampling_rate` setting from kong.conf.",
           type = "number",

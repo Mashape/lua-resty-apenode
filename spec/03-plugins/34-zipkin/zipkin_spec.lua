@@ -12,6 +12,7 @@ local http_route_host             = "http-route"
 local http_route_ignore_host      = "http-route-ignore"
 local http_route_w3c_host         = "http-route-w3c"
 local http_route_dd_host          = "http-route-dd"
+local http_route_ins_host         = "http-route-ins"
 local http_route_clear_host       = "http-clear-route"
 local http_route_no_preserve_host = "http-no-preserve-route"
 
@@ -671,6 +672,21 @@ local function setup_zipkin_old_propagation(bp, service, traceid_byte_count)
       default_header_type = "datadog",
     }
   })
+
+  -- header_type = "instana"
+  bp.plugins:insert({
+    name = "zipkin",
+    route = {id = bp.routes:insert({
+      service = service,
+      hosts = { http_route_ins_host },
+    }).id},
+    config = {
+      sample_ratio = 1,
+      http_endpoint = fmt("http://%s:%d/api/v2/spans", ZIPKIN_HOST, ZIPKIN_PORT),
+      header_type = "instana",
+      default_header_type = "instana",
+    }
+  })
 end
 
 local function setup_zipkin_new_propagation(bp, service, traceid_byte_count)
@@ -687,7 +703,7 @@ local function setup_zipkin_new_propagation(bp, service, traceid_byte_count)
         { name = "static", value = "ok" },
       },
       propagation = {
-        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp" },
+        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp", "instana" },
         inject = { "preserve" },
         default_format = "b3-single",
       },
@@ -723,7 +739,7 @@ local function setup_zipkin_new_propagation(bp, service, traceid_byte_count)
       sample_ratio = 1,
       http_endpoint = fmt("http://%s:%d/api/v2/spans", ZIPKIN_HOST, ZIPKIN_PORT),
       propagation = {
-        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp" },
+        extract = { "b3", "w3c", "jaeger", "ot", "datadog", "aws", "gcp", "instana" },
         inject = { "preserve", "w3c" },
         default_format = "b3-single",
       },
@@ -741,9 +757,27 @@ local function setup_zipkin_new_propagation(bp, service, traceid_byte_count)
       sample_ratio = 1,
       http_endpoint = fmt("http://%s:%d/api/v2/spans", ZIPKIN_HOST, ZIPKIN_PORT),
       propagation = {
-        extract = { "b3", "w3c", "jaeger", "ot", "aws", "datadog", "gcp" },
+        extract = { "b3", "w3c", "jaeger", "ot", "aws", "datadog", "gcp", "instana" },
         inject = { "preserve", "datadog" },
         default_format = "datadog",
+      },
+    }
+  })
+
+  -- header_type = "instana"
+  bp.plugins:insert({
+    name = "zipkin",
+    route = {id = bp.routes:insert({
+      service = service,
+      hosts = { http_route_ins_host },
+    }).id},
+    config = {
+      sample_ratio = 1,
+      http_endpoint = fmt("http://%s:%d/api/v2/spans", ZIPKIN_HOST, ZIPKIN_PORT),
+      propagation = {
+        extract = { "b3", "w3c", "jaeger", "ot", "aws", "datadog", "gcp", "instana" },
+        inject = { "preserve", "instana" },
+        default_format = "instana",
       },
     }
   })
@@ -1576,6 +1610,35 @@ describe("http integration tests with zipkin server [#"
 
         assert.is_not_nil(tonumber(json.headers["x-datadog-trace-id"]))
         assert.is_not_nil(tonumber(json.headers["x-datadog-parent-id"]))
+      end)
+    end)
+
+    describe("propagates instana tracing headers", function()
+      it("with instana headers in client request", function()
+        local trace_id = gen_trace_id(16)
+        local span_id = gen_span_id()
+        local r = proxy_client:get("/", {
+          headers = {
+            ["x-instana-t"] = trace_id,
+            ["x-instana-s"] = span_id,
+            host = http_route_host,
+          },
+        })
+        local body = assert.response(r).has.status(200)
+        local json = cjson.decode(body)
+
+        assert.equals(trace_id, json.headers["x-instana-t"])
+      end)
+
+      it("without instana headers in client request", function()
+        local r = proxy_client:get("/", {
+          headers = { host = http_route_ins_host },
+        })
+        local body = assert.response(r).has.status(200)
+        local json = cjson.decode(body)
+
+        assert.is_not_nil(json.headers["x-instana-t"])
+        assert.is_not_nil(json.headers["x-instana-s"])
       end)
     end)
 
