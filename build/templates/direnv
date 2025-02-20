@@ -1,0 +1,168 @@
+build_name="{{build_name}}"
+workspace_path="{{workspace_path}}"
+build_root=$workspace_path/bazel-bin/build
+build_ext=$workspace_path/bazel-bin/external
+kong_venv=$build_root/$build_name
+
+if [[ ! -d $kong_venv ]]; then
+    echo "Kong install at $kong_venv is in an unknown state, exiting"
+    return
+fi
+
+# it's like direnv's path_add function, but it supports custom separators
+_add_path() {
+    local -r var=$1
+    local -r path=$2
+    local -r sep=${3:-;}
+
+    if [[ -z "${!var:-}" ]]; then
+        export "$var=$path"
+        return
+    fi
+
+    local -a old
+    IFS="${sep}" read -ra old <<<"${!var-}"
+
+    local -a new=()
+
+    for p in "${old[@]}"; do
+        if [[ "$p" == "$path" ]]; then
+            continue
+        fi
+        new+=("$p")
+    done
+
+    printf -v "$var" '%s' "$path" "${new[@]/#/$sep}"
+
+    # required for direnv to register the exported var
+    export "$var=${!var}"
+}
+
+_add_path_if_exists() {
+    local var=$1
+    local path=$2 # trying to keep the same signature as _add_path()
+
+    path=$(realpath -m "$path")
+
+    if [[ ! -d $path ]]; then
+        echo "$var element $path does not exist"
+        return 0
+    fi
+
+    _add_path "$@"
+}
+
+_add_lua_path() {
+    local path=$1
+
+    path=$(realpath -m "$path")
+
+    if [[ ! -d $path ]]; then
+        echo "LUA_PATH dir $path does not exist"
+        return 0
+    fi
+
+    _add_path LUA_PATH "$path/?/init.lua"  ";"
+    _add_path LUA_PATH "$path/?.lua"       ";"
+}
+
+_add_lua_cpath() {
+    local path=$1
+
+    path=$(realpath -m "$path")
+
+    if [[ ! -d $path ]]; then
+        echo "LUA_CPATH dir $path does not exist"
+        return 0
+    fi
+
+    _add_path LUA_CPATH "$path/?.so" ";"
+}
+
+_add_lua_paths() {
+    local -r path=$1
+
+    _add_lua_path "$path"
+    _add_lua_cpath "$path"
+}
+
+# generate luarocks config file and virtual env bindir
+common=${kong_venv}-venv/lib/venv-commons
+if [[ -x $common ]]; then
+    watch_file "$common"
+    "$common" "$kong_venv" /dev/null
+fi
+
+unset LUA_PATH LUA_CPATH
+export LUA_PATH LUA_CPATH
+
+rocks=$kong_venv
+if [[ -d $rocks ]]; then
+    echo "LuaRocks: $rocks"
+
+    if [[ -e $rocks/rocks_config ]]; then
+        export LUAROCKS_CONFIG=$rocks/rocks_config
+    fi
+
+    _add_path_if_exists PATH "$rocks"/bin ":"
+    _add_lua_path "$rocks/share/lua/5.1"
+    _add_lua_cpath "$rocks/lib/lua/5.1"
+else
+    echo "LuaRocks dir ($rocks) not found"
+fi
+
+_add_path_if_exists PATH "$kong_venv"/venv/bin ":"
+
+if [[ -d $kong_venv/kong ]]; then
+    # keep "make dev" happy
+    export LIBRARY_PREFIX=$kong_venv/kong
+fi
+
+# openresty
+resty=${kong_venv}/openresty
+if [[ -d $resty ]]; then
+    echo "OpenResty: $resty"
+
+    export KONG_OPENRESTY_PATH=$resty
+    export KONG_TEST_OPENRESTY_PATH=$resty
+
+    _add_path_if_exists PATH    "$resty"/bin              ":"
+    _add_path_if_exists PATH    "$resty"/nginx/sbin       ":"
+    _add_path_if_exists PATH    "$resty"/luajit/bin       ":"
+    _add_path_if_exists MANPATH "$resty"/luajit/share/man ":"
+
+    for path in "$resty"/luajit/share/luajit-*; do
+        _add_lua_path "$path"
+    done
+
+    _add_lua_cpath "$resty"/luajit/lib
+    _add_lua_paths "$resty"/lualib
+    _add_lua_paths "$resty"/site/lualib
+else
+    echo "OpenResty ($resty) not found"
+fi
+
+# openssl
+openssl=$build_ext/openssl/openssl
+if [[ -d $openssl ]]; then
+    echo "OpenSSL: $openssl"
+
+    _add_path_if_exists PATH "$openssl"/bin ":"
+
+    # needed for lua openssl
+    export OPENSSL_DIR=$openssl
+    export OPENSSL_INCDIR=$openssl/include
+
+    # needed for lua cqueues
+    export CRYPTO_DIR=$openssl
+else
+    echo "openssl ($openssl) not found"
+fi
+
+# always prepend ./
+_add_lua_path "$workspace_path"
+LUA_PATH="${LUA_PATH%%;};"
+
+_add_path_if_exists PATH "$workspace_path"/bin ":"
+
+# vim: ft=sh
