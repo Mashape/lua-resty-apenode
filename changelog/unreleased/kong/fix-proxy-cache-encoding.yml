@@ -1,0 +1,4 @@
+message: |
+  **proxy-cache:** now `vary_headers` defaults to `"Accept-Encoding"`, so that responses won't be sent with the encoding-mismatched cache.
+type: bugfix
+scope: Plugin
