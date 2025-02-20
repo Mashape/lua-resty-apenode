@@ -3,9 +3,12 @@ local ngx_encode_base64 = ngx.encode_base64
 local ngx_decode_base64 = ngx.decode_base64
 local null = ngx.null
 local cjson = require "cjson.safe"
+local to_hex            = require("resty.string").to_hex
 
 local date = require("date")
 local get_request_id = require("kong.observability.tracing.request_id").get
+local tracing_context = require("kong.observability.tracing.tracing_context")
+local propagate = require("kong.observability.tracing.propagation")
 
 local EMPTY = {}
 
@@ -142,11 +145,47 @@ local function extract_proxy_response(content)
 end
 
 
+-- Inject tracing header into the request so that
+-- it can be sent to the Lambda function
+local function inject_tracing_header()
+  local ctx = ngx.ctx
+
+  local root_span = ctx.KONG_SPANS and ctx.KONG_SPANS[1]
+  local trace_id = tracing_context.get_raw_trace_id()
+  if trace_id and root_span and root_span.should_sample then
+    local injected_tracing_formats = ctx.TRACING_CONTEXT
+                                      and ctx.TRACING_CONTEXT.trace_id
+                                      and ctx.TRACING_CONTEXT.trace_id.formatted
+
+    local lambda_propagation_config = {
+      inject = {},
+    }
+
+    for trace_format, _ in pairs(injected_tracing_formats) do
+      table.insert(lambda_propagation_config.inject, trace_format)
+    end
+
+    propagate.propagate(lambda_propagation_config, function()
+      local inject_ctx = {}
+      local active_span = kong and kong.tracing and kong.tracing.active_span()
+      if active_span then
+        inject_ctx.trace_id = active_span.trace_id
+        inject_ctx.should_sample = active_span.should_sample
+        inject_ctx.span_id = active_span.span_id
+      end
+
+      return inject_ctx
+    end)
+  end
+
+end
+
+
 local function aws_serializer(ctx, config)
   ctx = ctx or ngx.ctx
   local var = ngx.var
 
-  -- prepare headers
+  inject_tracing_header()
   local headers = ngx_req_get_headers()
   local multiValueHeaders = {}
   for hname, hvalue in pairs(headers) do
@@ -285,6 +324,7 @@ local function build_request_payload(conf)
     end
 
     if conf.forward_request_headers then
+      inject_tracing_header()
       upstream_body.request_headers = kong.request.get_headers()
     end
 
