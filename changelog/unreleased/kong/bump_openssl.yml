@@ -1,0 +1,4 @@
+message: "Bumped OpenSSL to 3.4.1 in Core dependencies."
+type: dependency
+scope: Core
+

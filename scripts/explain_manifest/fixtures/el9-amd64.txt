@@ -179,7 +179,7 @@
   - lua-resty-lmdb
   - ngx_brotli
   - ngx_wasmx_module
-  OpenSSL   : OpenSSL 3.2.3 3 Sep 2024
+  OpenSSL   : OpenSSL 3.4.1 11 Feb 2025
   DWARF     : True
   DWARF - ngx_http_request_t related DWARF DIEs: True
 

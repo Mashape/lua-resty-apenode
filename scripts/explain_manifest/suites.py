@@ -95,14 +95,14 @@ def common_suites(expect, libxcrypt_no_obsolete_api: bool = False, skip_libsimdj
         expect("/usr/local/openresty/nginx/sbin/nginx", "nginx should link libxcrypt.so.1") \
             .needed_libraries.contain("libcrypt.so.1")
 
-    expect("/usr/local/openresty/nginx/sbin/nginx", "nginx compiled with OpenSSL 3.2.x") \
-        .nginx_compiled_openssl.matches(r"OpenSSL 3.2.\d") \
-        .version_requirement.key("libssl.so.3").less_than("OPENSSL_3.3.0") \
-        .version_requirement.key("libcrypto.so.3").less_than("OPENSSL_3.3.0") \
+    expect("/usr/local/openresty/nginx/sbin/nginx", "nginx compiled with OpenSSL 3.4.x") \
+        .nginx_compiled_openssl.matches(r"OpenSSL 3.4.\d") \
+        .version_requirement.key("libssl.so.3").less_than("OPENSSL_3.5.0") \
+        .version_requirement.key("libcrypto.so.3").less_than("OPENSSL_3.5.0") \
 
-    expect("**/*.so", "dynamic libraries are compiled with OpenSSL 3.2.x") \
-        .version_requirement.key("libssl.so.3").less_than("OPENSSL_3.3.0") \
-        .version_requirement.key("libcrypto.so.3").less_than("OPENSSL_3.3.0") \
+    expect("**/*.so", "dynamic libraries are compiled with OpenSSL 3.4.x") \
+        .version_requirement.key("libssl.so.3").less_than("OPENSSL_3.5.0") \
+        .version_requirement.key("libcrypto.so.3").less_than("OPENSSL_3.5.0") \
 
     ADA_VERSION = read_requirements()["ADA"]
     expect("**/*.so", "ada version is less than %s" % ADA_VERSION) \
