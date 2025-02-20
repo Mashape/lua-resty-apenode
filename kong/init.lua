@@ -77,6 +77,7 @@ local certificate = require "kong.runloop.certificate"
 local concurrency = require "kong.concurrency"
 local cache_warmup = require "kong.cache.warmup"
 local balancer = require "kong.runloop.balancer"
+local utils = require "kong.admin_gui.utils"
 local kong_error_handlers = require "kong.error_handlers"
 local plugin_servers = require "kong.runloop.plugin_servers"
 local lmdb_txn = require "resty.lmdb.transaction"
@@ -126,6 +127,7 @@ local set_current_peer = ngx_balancer.set_current_peer
 local set_timeouts     = ngx_balancer.set_timeouts
 local set_more_tries   = ngx_balancer.set_more_tries
 local enable_keepalive = ngx_balancer.enable_keepalive
+local select_listener  = utils.select_listener
 
 
 local time_ns            = kong_time.time_ns
@@ -1955,6 +1957,20 @@ function Kong.admin_gui_kconfig_content()
     kong.response.exit(500, { message = "An unexpected error occurred" })
   else
     ngx.say(content)
+  end
+end
+
+function Kong.admin_gui_api_balancer()
+  local admin_listeners = kong.configuration.admin_listeners
+  local listener = select_listener(admin_listeners, { ssl = true })
+  if not listener then
+    listener = select_listener(admin_listeners, { ssl = false })
+  end
+
+  local ok, err = set_current_peer(listener.ip, listener.port)
+  if not ok then
+    ngx.log(ngx.ERR, "failed to set the Admin Api balancer: ", err)
+    return ngx.exit(500)
   end
 end
 
