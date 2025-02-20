@@ -4,6 +4,7 @@ local nkeys = require("table.nkeys")
 local table_isarray = require("table.isarray")
 local uuid = require("kong.tools.uuid")
 local json = require("kong.tools.cjson")
+local kong_table = require "kong.tools.table"
 
 
 local type         = type
@@ -885,10 +886,6 @@ do
         local field_entity_type = ref.reference
         local field_err_t = err_t[field_name]
 
-        if type(field_err_t) == "string" then
-          field_err_t = entity_type..":"..field_err_t..":"..ref.field
-        end
-
         -- if the foreign value is _not_ a table, attempting to treat it like
         -- an entity or array of entities will only yield confusion.
         --
@@ -988,7 +985,7 @@ do
         -- same as the one-to-one case: if the field's value is not a table,
         -- we will let any errors related to it be categorized as a field-level
         -- error instead
-        if type(field_value) == "table" then
+        if type(field_value) == "table" and kong_table.is_array(field_value) then
           entity[field_name] = nil
           err_t[field_name] = nil
 

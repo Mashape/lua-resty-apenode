@@ -2359,7 +2359,7 @@ R6InCcH2Wh8wSeY5AuDXvu2tv9g/PW9wIJmPuKSHMA==
     
     local body = assert.response(res).has.status(400)
     local entities = cjson.decode(body)
-    assert.equals("snis:required field missing:certificate", entities.flattened_errors[1].errors[1].message)
+    assert.equals("expected an array", entities.flattened_errors[1].errors[1].message)
   end)
 
   it("flatten_errors1 when conflicting inputs", function()
