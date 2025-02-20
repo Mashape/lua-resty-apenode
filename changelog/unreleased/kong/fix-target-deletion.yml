@@ -1,0 +1,3 @@
+message: fixed an issue where targets can't be removed from dns query query if they are deleted or updated via admin API.
+scope: Core
+type: bugfix

@@ -1,4 +1,5 @@
 local helpers = require "spec.helpers"
+local cjson = require "cjson"
 
 local TCP_PORT = 16945
 
@@ -265,5 +266,74 @@ for _, strategy in helpers.each_strategy() do
         tcp:close()
       end)
     end)
+
+    describe("dns query queue", function()
+      local upstream, target
+      local admin_client, error_log_path
+      if strategy ~= "off" then
+        lazy_setup(function()
+          local bp = helpers.get_db_utils(strategy, {
+            "routes",
+            "services",
+            "upstreams"
+          })
+
+          upstream = bp.upstreams:insert {name = "upstream",}
+          target = bp.targets:insert {
+            target = "127.0.0.1:8000",
+            upstream = { id = upstream.id },
+          }
+
+          assert(helpers.start_kong {
+            log_level             = "info",
+            prefix                = "servroot1",
+            database              = strategy,
+            proxy_listen          = "0.0.0.0:8000, 0.0.0.0:8443 ssl",
+            admin_listen          = "0.0.0.0:8001",
+            nginx_conf            = "spec/fixtures/custom_nginx.template",
+          })
+
+          assert(helpers.start_kong {
+            log_level             = "info",
+            prefix                = "servroot2",
+            database              = strategy,
+            proxy_listen          = "0.0.0.0:9000, 0.0.0.0:9443 ssl",
+            admin_listen          = "0.0.0.0:9001",
+          })
+
+          admin_client = helpers.admin_client(nil, 8001)
+          error_log_path = "servroot2/logs/error.log"
+        end)
+
+        lazy_teardown(function ()
+          assert(helpers.stop_kong("servroot1"))
+          assert(helpers.stop_kong("servroot2"))
+          if admin_client then
+            admin_client:close()
+          end
+        end)
+
+        it("delete target", function()
+          local res = assert(admin_client: send {
+            method = "GET",
+            path = "/upstreams/"..upstream.name.."/targets/"..target.id
+          })
+          res = assert.status(200,res)
+          res = assert(cjson.decode(res))
+          assert.same(target.id, res.id)
+
+          res = assert(admin_client: send {
+            method = "DELETE",
+            path = "/upstreams/"..upstream.name.."/targets/"..target.id
+          })
+          assert.status(204,res)
+
+          assert.logfile(error_log_path).has.no.line
+            ("could not stop DNS renewal for target", true, 10)
+
+        end)
+      end
+    end)
+
   end)
 end
