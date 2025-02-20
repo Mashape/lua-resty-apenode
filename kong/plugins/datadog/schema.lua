@@ -82,6 +82,9 @@ return {
               service_name_tag = { description = "String to be attached as the name of the service.", type = "string",
               default = "name" }, },
           {
+              route_name_tag = { description = "String to be attached as the name of the route.", type = "string",
+              default = "route" }, },
+          {
               status_tag = { description = "String to be attached as the tag of the HTTP status.", type = "string",
               default = "status" }, },
           {
