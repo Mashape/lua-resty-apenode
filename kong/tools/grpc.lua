@@ -72,7 +72,7 @@ function _M.new()
     "/usr/local/opt/protobuf/include/", -- homebrew
     "/usr/include",
     "kong/include",
-    "spec/fixtures/grpc",
+    "spec/fixtures/grpc/proto",
   } do
     protoc_instance:addpath(v)
   end
