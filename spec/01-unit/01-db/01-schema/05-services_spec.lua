@@ -579,6 +579,20 @@ describe("services", function()
       assert.is_true(ok)
     end)
 
+    it("'protocol' accepts 'grpcs' with tls_verify and ca_certificates", function()
+      local service = {
+        protocol = "grpcs",
+        host = "x.y",
+        port = 80,
+        enabled = true,
+        tls_verify = true,
+        ca_certificates = { "41f484e9-7888-495d-9283-1d4ce2168172" },
+      }
+      local ok, err = Services:validate(service)
+      assert.is_nil(err)
+      assert.is_true(ok)
+    end)
+
     it("if 'protocol = tcp/tls/udp/grpc/grpcs', then 'path' is empty", function()
       for _, v in ipairs({ "tcp", "tls", "udp", "grpc", "grpcs" }) do
         local service = {
