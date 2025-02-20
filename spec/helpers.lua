@@ -29,6 +29,25 @@ local client = reload_module("spec.internal.client")
 local wait = reload_module("spec.internal.wait")
 
 
+-- redo the patches to make kong PDK available to timerng timers
+_G.timerng:destroy()
+
+_G.timerng = require("resty.timerng").new({
+  min_threads = 16,
+  max_threads = 32,
+})
+
+_G.timerng:start()
+
+_G.ngx.timer.at = function (delay, callback, ...)
+  return _timerng:at(delay, callback, ...)
+end
+
+_G.ngx.timer.every = function (interval, callback, ...)
+  return _timerng:every(interval, callback, ...)
+end
+
+
 ----------------
 -- Variables/constants
 -- @section exported-fields
