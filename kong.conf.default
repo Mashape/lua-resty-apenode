@@ -345,6 +345,13 @@
                                  # - certificate content
                                  # - base64 encoded certificate content
 
+#cluster_rpc =                   # Enable/disable cluster rpc framework.
+                                 # The default value is `off`.
+
+#cluster_rpc_sync =              # Enable/disable cluster rpc sync protocol
+                                 # The default value is `off`.
+                                 # If cluster_rpc is `off`, then cluster_rpc_sync will always be `off`.
+
 #------------------------------------------------------------------------------
 # HYBRID MODE DATA PLANE
 #------------------------------------------------------------------------------
