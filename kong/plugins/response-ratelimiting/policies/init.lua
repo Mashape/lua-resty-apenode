@@ -206,8 +206,8 @@ return {
       local expirations = {}
       local idx = 0
       local periods = timestamp.get_timestamps(current_timestamp)
-      for period, period_date in pairs(periods) do
-        local cache_key = get_local_key(conf, identifier, name, period, period_date)
+      for period, _ in pairs(conf.limits[name]) do
+        local cache_key = get_local_key(conf, identifier, name, period, periods[period])
         local exists, err = red:exists(cache_key)
         if err then
           kong.log.err("failed to query Redis: ", err)
