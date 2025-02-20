@@ -163,7 +163,8 @@ for _, flavor in ipairs({ "traditional", "traditional_compatible", "expressions"
               id = "e8fb37f1-102d-461e-9c51-6608a6bb8101",
               hosts = {
                 "domain-1.org",
-                "domain-2.org"
+                "domain-2.org",
+                "Domain-Capitalized.org"
               },
             },
           },
@@ -379,6 +380,19 @@ for _, flavor in ipairs({ "traditional", "traditional_compatible", "expressions"
         assert.same(use_case[1].route, match_t.route)
         if flavor == "traditional" then
           assert.same(use_case[1].route.hosts[1], match_t.matches.host)
+        end
+        assert.same(nil, match_t.matches.method)
+        assert.same(nil, match_t.matches.uri)
+        assert.same(nil, match_t.matches.uri_captures)
+      end)
+
+      it("[host] matches should be case insensitive", function()
+        -- host
+        local match_t = router:select("GET", "/", "domain-capitalized.org")
+        assert.truthy(match_t)
+        assert.same(use_case[1].route, match_t.route)
+        if flavor == "traditional" then
+          assert.same(use_case[1].route.hosts[3], match_t.matches.host)
         end
         assert.same(nil, match_t.matches.method)
         assert.same(nil, match_t.matches.uri)
