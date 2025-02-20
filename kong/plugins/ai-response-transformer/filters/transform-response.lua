@@ -15,7 +15,7 @@ local kong_utils     = require("kong.tools.gzip")
 
 local _M = {
   NAME = "ai-response-transformer-transform-response",
-  STAGE = "REQ_TRANSFORMATION",
+  STAGE = "RES_TRANSFORMATION",
   }
 
 local FILTER_OUTPUT_SCHEMA = {
