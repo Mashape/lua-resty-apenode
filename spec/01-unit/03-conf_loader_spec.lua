@@ -60,6 +60,7 @@ describe("Configuration loader", function()
     assert.same({"0.0.0.0:8000 reuseport backlog=16384", "0.0.0.0:8443 http2 ssl reuseport backlog=16384"}, conf.proxy_listen)
     assert.same({"0.0.0.0:8002", "0.0.0.0:8445 ssl"}, conf.admin_gui_listen)
     assert.equal("/", conf.admin_gui_path)
+    assert.equal(true, conf.admin_gui_csp_header)
     assert.equal("logs/admin_gui_access.log", conf.admin_gui_access_log)
     assert.equal("logs/admin_gui_error.log", conf.admin_gui_error_log)
     assert.same({}, conf.ssl_cert) -- check placeholder value

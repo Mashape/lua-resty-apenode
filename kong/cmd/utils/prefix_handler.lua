@@ -24,6 +24,7 @@ local log = require "kong.cmd.utils.log"
 local ffi = require "ffi"
 local bit = require "bit"
 local nginx_signals = require "kong.cmd.utils.nginx_signals"
+local admin_gui_utils = require "kong.admin_gui.utils"
 
 
 local strip = require("kong.tools.string").strip
@@ -440,7 +441,35 @@ local function compile_kong_conf(kong_config, template_env_inject)
 end
 
 local function compile_kong_gui_include_conf(kong_config)
-  return compile_conf(kong_config, kong_nginx_gui_include_template)
+  -- Build connect-src in the CSP header
+  -- Other parts are defined inside nginx_kong_gui_include.lua
+  local csp_connect_src
+  if kong_config.admin_gui_csp_header then
+    -- TODO: Try bundling buttons.js with frontend assets instead of loading it from a URL
+    csp_connect_src = { "'self'", "https://api.github.com/repos/kong/kong" }
+    if kong_config.admin_gui_api_url then
+      table.insert(csp_connect_src, kong_config.admin_gui_api_url)
+    else
+      -- If admin_gui_api_url is missing, we will add dynamic sources that echoes the requested host
+      -- with ports defined in admin_listeners corresponding to the scheme
+      local api_listen = admin_gui_utils.select_listener(kong_config.admin_listeners, { ssl = false })
+      local api_port = api_listen and api_listen.port
+      if api_port then
+        table.insert(csp_connect_src, "http://$host:" .. api_port)
+      end
+
+      local api_ssl_listen = admin_gui_utils.select_listener(kong_config.admin_listeners, { ssl = true })
+      local api_ssl_port = api_ssl_listen and api_ssl_listen.port
+      if api_ssl_port then
+        table.insert(csp_connect_src, "https://$host:" .. api_ssl_port)
+      end
+    end
+    csp_connect_src = table.concat(csp_connect_src, " ")
+  end
+
+  return compile_conf(kong_config, kong_nginx_gui_include_template, {
+    csp_connect_src = csp_connect_src,
+  })
 end
 
 local function compile_kong_stream_conf(kong_config, template_env_inject)
