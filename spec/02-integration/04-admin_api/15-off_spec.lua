@@ -2323,7 +2323,7 @@ R6InCcH2Wh8wSeY5AuDXvu2tv9g/PW9wIJmPuKSHMA==
     }, post_config(input))
   end)
 
-  it("snis in certificates without certificate", function()
+  it("basicauth_credentials in consumers expected be an array", function()
     local res = assert(client:send {
       method = "POST",
       path = "/config?flatten_errors=1",
