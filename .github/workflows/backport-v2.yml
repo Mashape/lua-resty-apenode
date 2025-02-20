@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Create backport pull requests
-        uses: korthout/backport-action@924c8170740fa1e3685f69014971f7f251633f53 # v2.4.1
+        uses: korthout/backport-action@e8ba02342f095377d8f870abfac2da22ce7205c1 # v2.4.1
         id: backport
         with:
           github_token: ${{ secrets.PAT }}
