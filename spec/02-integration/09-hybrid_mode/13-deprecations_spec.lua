@@ -63,6 +63,11 @@ for _, strategy in helpers.each_strategy({"postgres"}) do
         cluster_rpc = rpc,
         cluster_rpc_sync = rpc_sync,
       }))
+
+      if rpc_sync == "on" then
+        assert.logfile(dp_prefix .. "/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 20)
+      end
+
       dp_logfile = helpers.get_running_conf(dp_prefix).nginx_err_logs
       cp_logfile = helpers.get_running_conf(cp_prefix).nginx_err_logs
     end)

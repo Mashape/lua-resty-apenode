@@ -162,6 +162,10 @@ describe("Plugin: correlation-id (schema) #a [#" .. strategy .."]", function()
         cluster_rpc = rpc,
         cluster_rpc_sync = rpc_sync,
       }))
+
+      if rpc_sync == "on" then
+        assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+      end
     end)
 
     before_each(function()

@@ -118,6 +118,10 @@ for _, strategy in helpers.each_strategy() do
           stream_listen = "0.0.0.0:5555",
         }, nil, nil, fixtures))
 
+        if rpc_sync == "on" then
+          assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+        end
+
       end)
 
       lazy_teardown(function()

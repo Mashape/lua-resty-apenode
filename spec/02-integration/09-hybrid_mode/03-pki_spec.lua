@@ -49,6 +49,10 @@ describe("CP/DP PKI sync #" .. strategy .. " rpc_sync=" .. rpc_sync, function()
       cluster_rpc_sync = rpc_sync,
       worker_state_update_frequency = 1,
     }))
+
+    if rpc_sync == "on" then
+      assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+    end
   end)
 
   lazy_teardown(function()

@@ -65,6 +65,10 @@ describe("cluster_ocsp = on works #" .. strategy .. " rpc_sync=" .. rpc_sync, fu
         cluster_rpc = rpc,
         cluster_rpc_sync = rpc_sync,
       }))
+
+      if rpc_sync == "on" then
+        assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+      end
     end)
 
     lazy_teardown(function()
@@ -286,6 +290,10 @@ describe("cluster_ocsp = off works with #" .. strategy .. " rpc_sync=" .. rpc_sy
         cluster_rpc = rpc,
         cluster_rpc_sync = rpc_sync,
       }))
+
+      if rpc_sync == "on" then
+        assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+      end
     end)
 
     lazy_teardown(function()
@@ -434,6 +442,10 @@ describe("cluster_ocsp = optional works with #" .. strategy .. " rpc_sync=" .. r
         cluster_rpc = rpc,
         cluster_rpc_sync = rpc_sync,
       }))
+
+      if rpc_sync == "on" then
+        assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+      end
     end)
 
     lazy_teardown(function()

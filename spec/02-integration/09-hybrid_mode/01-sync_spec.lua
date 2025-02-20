@@ -48,6 +48,10 @@ describe("CP/DP communication #" .. strategy .. " rpc_sync=" .. rpc_sync, functi
       worker_state_update_frequency = 1,
     }))
 
+    if rpc_sync == "on" then
+      assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+    end
+
     for _, plugin in ipairs(helpers.get_plugins_list()) do
       if plugin.name == "key-auth" then
         KEY_AUTH_PLUGIN = plugin
@@ -652,6 +656,10 @@ describe("CP/DP config sync #" .. strategy .. " rpc_sync=" .. rpc_sync, function
       cluster_rpc = rpc,
       worker_state_update_frequency = 1,
     }))
+
+    if rpc_sync == "on" then
+      assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+    end
   end)
 
   lazy_teardown(function()
@@ -776,6 +784,10 @@ describe("CP/DP labels #" .. strategy, function()
       cluster_rpc = rpc,
       cluster_rpc_sync = rpc_sync,
     }))
+
+    if rpc_sync == "on" then
+      assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+    end
   end)
 
   lazy_teardown(function()
@@ -840,6 +852,9 @@ describe("CP/DP cert details(cluster_mtls = shared) #" .. strategy, function()
       cluster_rpc = rpc,
       cluster_rpc_sync = rpc_sync,
     }))
+    if rpc_sync == "on" then
+      assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+    end
   end)
 
   lazy_teardown(function()
@@ -905,6 +920,10 @@ describe("CP/DP cert details(cluster_mtls = pki) #" .. strategy, function()
       cluster_rpc = rpc,
       cluster_rpc_sync = rpc_sync,
     }))
+
+    if rpc_sync == "on" then
+      assert.logfile("servroot2/logs/error.log").has.line("[kong.sync.v2] full sync ends", true, 10)
+    end
   end)
 
   lazy_teardown(function()
