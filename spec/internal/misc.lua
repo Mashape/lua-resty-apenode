@@ -165,15 +165,29 @@ end
 --- Generate asymmetric keys
 -- @function generate_keys
 -- @param fmt format to receive the public and private pair
+-- @param typ (optional) the type of key to generate, default: RSA
 -- @return `pub, priv` key tuple or `nil + err` on failure
-local function generate_keys(fmt)
+local function generate_keys(fmt, typ)
   fmt = string.upper(fmt) or "JWK"
-  local key, err = pkey.new({
-    -- only support RSA for now
-    type = 'RSA',
-    bits = 2048,
-    exp = 65537
-  })
+  typ = typ and string.upper(typ) or "RSA"
+  local key, err
+  -- only support RSA and EC for now
+  if typ == "RSA" then
+    key, err = pkey.new({
+      type = 'RSA',
+      bits = 2048,
+      exp = 65537
+    })
+
+  elseif typ == "EC" then
+    key, err = pkey.new({
+      type = 'EC',
+      curve = 'prime256v1',
+    })
+
+  else
+    return nil, "unsupported key type"
+  end
   assert(key)
   assert(err == nil, err)
   local pub = key:tostring("public", fmt)
