@@ -2933,6 +2933,8 @@ configuration changes are needed when upgrading.
   [#9344](https://github.com/Kong/kong/pull/9344)
 - **Response-rate-limiting**: The default policy is now `local` for all deployment modes.
   [#9344](https://github.com/Kong/kong/pull/9344)
+- **AWS-Lambda**: Change path from request_uri to upstream_uri, fix uri can not follow the rule defined in the request-transformer configuration
+  [#9058](https://github.com/Kong/kong/pull/9058) [#9129](https://github.com/Kong/kong/pull/9129)
 
 ### Deprecations
 
@@ -3232,8 +3234,6 @@ configuration changes are needed when upgrading.
   [#8564](https://github.com/Kong/kong/pull/8564)
 - **AWS-Lambda**: Removed `proxy_scheme` field from schema
   [#8566](https://github.com/Kong/kong/pull/8566)
-- **AWS-Lambda**: Change path from request_uri to upstream_uri, fix uri can not follow the rule defined in the request-transformer configuration
-  [#9058](https://github.com/Kong/kong/pull/9058) [#9129](https://github.com/Kong/kong/pull/9129)
 - **hmac-auth**: Removed deprecated signature format using `ngx.var.uri`
   [#8558](https://github.com/Kong/kong/pull/8558)
 - Remove deprecated `blacklist`/`whitelist` config fields from bot-detection, ip-restriction and ACL plugins.
