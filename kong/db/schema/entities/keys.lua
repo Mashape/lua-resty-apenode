@@ -2,6 +2,7 @@ local typedefs = require "kong.db.schema.typedefs"
 local Schema = require "kong.db.schema"
 local cjson = require "cjson.safe"
 local supported_key_formats = require "kong.constants".KEY_FORMATS
+local null = ngx.null
 
 return {
   name          = "keys",
@@ -41,6 +42,14 @@ return {
       },
     },
     {
+      x5t = {
+        type     = "string",
+        description = "X.509 certificate SHA-1 thumbprint.",
+        required = false,
+        unique = false,
+      },
+    },
+    {
       jwk = {
         -- type string but validate against typedefs.jwk
         type = "string",
@@ -73,7 +82,7 @@ return {
       at_least_one_of = supported_key_formats
     },
     { custom_entity_check = {
-      field_sources = { "jwk", "pem", "kid" },
+      field_sources = { "jwk", "pem", "kid", "x5t" },
       fn = function(entity)
         -- JWK validation
         if type(entity.jwk) == "string" then
@@ -96,6 +105,11 @@ return {
           -- For JWK the `jwk.kid` must match the `kid` from the upper level
           if json_jwk.kid ~= entity.kid then
             return nil, "kid in jwk.kid must be equal to keys.kid"
+          end
+
+          -- For JWK the `jwk.x5t` must match the `x5t` from the upper level
+          if entity.x5t and entity.x5t ~= null and json_jwk.x5t ~= entity.x5t then
+            return nil, "x5t in jwk.x5t must be equal to keys.x5t"
           end
 
           -- running customer_validator

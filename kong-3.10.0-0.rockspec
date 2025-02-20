@@ -310,9 +310,11 @@ build = {
     ["kong.db.strategies.postgres.tags"] = "kong/db/strategies/postgres/tags.lua",
     ["kong.db.strategies.postgres.services"] = "kong/db/strategies/postgres/services.lua",
     ["kong.db.strategies.postgres.plugins"] = "kong/db/strategies/postgres/plugins.lua",
+    ["kong.db.strategies.postgres.keys"] = "kong/db/strategies/postgres/keys.lua",
     ["kong.db.strategies.off"] = "kong/db/strategies/off/init.lua",
     ["kong.db.strategies.off.connector"] = "kong/db/strategies/off/connector.lua",
     ["kong.db.strategies.off.tags"] = "kong/db/strategies/off/tags.lua",
+    ["kong.db.strategies.off.keys"] = "kong/db/strategies/off/keys.lua",
 
     ["kong.db.migrations.state"] = "kong/db/migrations/state.lua",
     ["kong.db.migrations.subsystems"] = "kong/db/migrations/subsystems.lua",

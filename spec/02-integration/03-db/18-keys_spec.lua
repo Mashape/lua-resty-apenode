@@ -6,7 +6,7 @@ local fmt = string.format
 
 for _, strategy in helpers.all_strategies() do
   describe("db.keys #" .. strategy, function()
-    local init_key_set, init_pem_key, pem_pub, pem_priv, jwk
+    local init_key_set, key_set2, init_pem_key, pem_pub, pem_priv, jwk
     local bp, db
 
     lazy_setup(function()
@@ -20,6 +20,10 @@ for _, strategy in helpers.all_strategies() do
 
       init_key_set = assert(bp.key_sets:insert {
         name = "testset",
+      })
+
+      key_set2 = assert(bp.key_sets:insert {
+        name = "testset2"
       })
 
       local jwk_pub, jwk_priv = helpers.generate_keys("JWK")
@@ -248,6 +252,82 @@ for _, strategy in helpers.all_strategies() do
       local jwk_priv, p_err = db.keys:get_privkey(jwk_t)
       assert.is_nil(jwk_priv)
       assert.matches("could not load a private key from public key material", p_err)
+    end)
+
+    it(":insert key with x5t", function()
+      local key, err = db.keys:insert {
+        name = "insert_key1",
+        set = init_key_set,
+        kid = "insert_kid1",
+        x5t = "insert_x5t1",
+        pem = { private_key = pem_priv, public_key = pem_pub }
+      }
+      assert.is_nil(err)
+      assert(key)
+
+      key, err = db.keys:insert({
+        name = "insert_key2",
+        set = init_key_set,
+        kid = "insert_kid2",
+        x5t = "insert_x5t1",
+        pem = { private_key = pem_priv, public_key = pem_pub }
+      })
+      assert.is_nil(key)
+      assert.matches("violation on", err)
+
+      key, err = db.keys:insert {
+        name = "insert_key3",
+        set = key_set2,
+        kid = "insert_kid3",
+        x5t = "insert_x5t1",
+        pem = { private_key = pem_priv, public_key = pem_pub }
+      }
+      assert.is_nil(err)
+      assert(key)
+
+      -- x5t should be unique even when set is not specified
+      local key, err = db.keys:insert {
+        name = "insert_key4",
+        kid = "insert_kid1",
+        x5t = "insert_x5t1",
+        pem = { private_key = pem_priv, public_key = pem_pub }
+      }
+      assert.is_nil(err)
+      assert(key)
+
+      key, err = db.keys:insert({
+        name = "insert_key5",
+        kid = "insert_kid2",
+        x5t = "insert_x5t1",   -- unique voilation
+        pem = { private_key = pem_priv, public_key = pem_pub }
+      })
+      assert.is_nil(key)
+      assert.matches("violation on", err)
+    end)
+
+    it(":select key by x5t", function()
+      local key, err = db.keys:insert {
+        name = "select_key1",
+        set = init_key_set,
+        kid = "select_kid1",
+        x5t = "select_x5t1",
+        pem = { private_key = pem_priv, public_key = pem_pub }
+      }
+      assert.is_nil(err)
+      assert(key)
+
+      local key2, err2 = db.keys:select_by_x5t_set_id("select_x5t1", init_key_set.id)
+      assert.is_nil(err2)
+      assert.same("select_key1", key2.name)
+      assert.same("select_x5t1", key2.x5t)
+
+      local key3, err3 = db.keys:select_by_x5t_set_id("select_x5t1", key_set2.id)  -- inexistent
+      assert.is_nil(err3)
+      assert.is_nil(key3)
+
+      local key4, err4 = db.keys:select_by_x5t_set_id("select_x5t1")  -- inexistent
+      assert.is_nil(err4)
+      assert.is_nil(key4)
     end)
   end)
 end

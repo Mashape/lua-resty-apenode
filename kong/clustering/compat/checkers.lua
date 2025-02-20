@@ -39,6 +39,31 @@ do
 end
 
 local compatible_checkers = {
+  { 3010000000, --[[ 3.10.0.0 ]]
+    function(config_table, dp_version, log_suffix)
+      local config_keys = config_table["keys"]
+      if not config_keys then
+        return nil
+      end
+
+      local has_update
+      for _, t in ipairs(config_keys) do
+        if t["x5t"] ~= nil then
+          t["x5t"] = nil
+          has_update = true
+        end
+      end
+
+      if has_update then
+        log_warn_message("contains configuration 'keys.x5t'",
+                         "be removed",
+                         dp_version,
+                         log_suffix)
+      end
+
+      return has_update
+    end
+  },
   { 3008000000, --[[ 3.8.0.0 ]]
     function (config_table, dp_version, log_suffix)
       local has_update
