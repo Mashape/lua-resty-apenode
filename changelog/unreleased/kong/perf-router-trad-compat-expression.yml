@@ -1,0 +1,3 @@
+message: "Improved performance of the traditional compatible router by optimizing the expression generation."
+type: performance
+scope: Core
