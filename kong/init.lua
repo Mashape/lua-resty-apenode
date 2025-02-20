@@ -989,7 +989,7 @@ function Kong.init_worker()
   if errors then
     for _, e in ipairs(errors) do
       local err = 'failed to execute the "init_worker" ' ..
-                  'handler for plugin "' .. e.plugin ..'": ' .. e.err
+                  'handler for plugin "' .. e.plugin ..'": ' .. tostring(e.err)
       stash_init_worker_error(err)
     end
   end
