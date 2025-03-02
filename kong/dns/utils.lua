@@ -142,10 +142,16 @@ local function parse_resolv_conf(path, enable_ipv6)
   resolv.search = resolv.search or (resolv.domain and { resolv.domain })
 
   -- check if timeout is 0s
-  if resolv.options.timeout and resolv.options.timeout <= 0 then
-    log(NOTICE, "A non-positive timeout of ", resolv.options.timeout,
-                "s is configured in resolv.conf. Setting it to 2000ms.")
-    resolv.options.timeout = 2000 -- 2000ms is lua-resty-dns default
+  if resolv.options.timeout then
+    if resolv.options.timeout <= 0 then
+      log(NOTICE, "A non-positive timeout of ", resolv.options.timeout,
+                  "s is configured in resolv.conf. Setting it to 2000ms.")
+      resolv.options.timeout = 2000 -- 2000ms is lua-resty-dns default
+
+    else
+      -- convert resolv.conf timeout from seconds to milliseconds
+      resolv.options.timeout = resolv.options.timeout * 1000
+    end
   end
 
   -- remove special domain like "."

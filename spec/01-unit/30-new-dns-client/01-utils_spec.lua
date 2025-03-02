@@ -348,7 +348,7 @@ options use-vc
       assert.is.equal("myservice.test", resolv.domain)
       assert.is.same({ "198.51.100.0", "2001:db8::1", "198.51.100.0:1234" }, resolv.nameserver)
       assert.is.same({ "list1", "list2" }, resolv.sortlist)
-      assert.is.same({ ndots = 2, timeout = 3, attempts = 4, debug = true, rotate = true,
+      assert.is.same({ ndots = 2, timeout = 3000, attempts = 4, debug = true, rotate = true,
           ["no-check-names"] = true, inet6 = true, ["ip6-bytestring"] = true,
           ["ip6-dotint"] = nil,  -- overridden by the next one, mutually exclusive
           ["no-ip6-dotint"] = true, edns0 = true, ["single-request"] = true,
