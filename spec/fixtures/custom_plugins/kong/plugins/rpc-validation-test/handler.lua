@@ -41,7 +41,7 @@ function RpcSyncV2ValidationHandler:init_worker()
 
     ngx.log(ngx.DEBUG, "kong.sync.v2.get_delta ok")
 
-    return { default = { deltas = deltas, wipe = true, }, }
+    return { default = { deltas = deltas, full_sync = true, }, }
   end)
 
 end

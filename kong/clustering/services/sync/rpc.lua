@@ -43,7 +43,7 @@ end
 
 
 local function empty_sync_result()
-  return { default = { deltas = {}, wipe = false, }, }
+  return { default = { deltas = {}, full_sync = false, }, }
 end
 
 
@@ -54,7 +54,7 @@ local function full_sync_result()
   end
 
   -- wipe dp lmdb, full sync
-  return { default = { deltas = deltas, wipe = true, }, }
+  return { default = { deltas = deltas, full_sync = true, }, }
 end
 
 
@@ -305,7 +305,8 @@ local function do_sync()
     return nil, "rpc is not ready"
   end
 
-  local msg = { default = { version = get_current_version(), }, }
+  local current_version = get_current_version()
+  local msg = { default = { version = current_version, }, }
 
   local ns_deltas, err = kong.rpc:call("control_plane", "kong.sync.v2.get_delta", msg)
   if not ns_deltas then
@@ -314,14 +315,14 @@ local function do_sync()
   end
 
   -- ns_deltas should look like:
-  -- { default = { deltas = { ... }, wipe = true, }, }
+  -- { default = { deltas = { ... }, full_sync = true, }, }
 
   local ns_delta = ns_deltas.default
   if not ns_delta then
     return nil, "default namespace does not exist inside params"
   end
 
-  local wipe = ns_delta.wipe
+  local is_full_sync = ns_delta.full_sync or ns_delta.wipe
   local deltas = ns_delta.deltas
 
   if not deltas then
@@ -338,7 +339,7 @@ local function do_sync()
   local default_ws_changed = preprocess_deltas(deltas)
 
   -- validate deltas and set the default values
-  local ok, err, err_t = validate_deltas(deltas, wipe)
+  local ok, err, err_t = validate_deltas(deltas, is_full_sync)
   if not ok then
     notify_error(ns_delta.latest_version, err_t)
     return nil, err
@@ -346,7 +347,7 @@ local function do_sync()
 
   local t = txn.begin(512)
 
-  if wipe then
+  if is_full_sync then
     ngx_log(ngx_INFO, "[kong.sync.v2] full sync begins")
 
     t:db_drop(false)
@@ -354,7 +355,7 @@ local function do_sync()
 
   local db = kong.db
 
-  local version = ""
+  local version = current_version
   local opts = {}
   local crud_events = {}
   local crud_events_n = 0
@@ -381,7 +382,7 @@ local function do_sync()
             ", version: ", delta_version,
             ", type: ", delta_type)
 
-    local ev, err = operation(db, t, delta, opts, wipe)
+    local ev, err = operation(db, t, delta, opts, is_full_sync)
     if err then
       return nil, err
     end
@@ -403,18 +404,18 @@ local function do_sync()
   t:set(DECLARATIVE_HASH_KEY, version)
 
   -- record the default workspace into LMDB for any of the following case:
-  -- * wipe is false, but the default workspace has been changed
-  -- * wipe is true (full sync)
-  if default_ws_changed or wipe then
+  -- * the default workspace has been changed
+  -- * full sync
+  if default_ws_changed or is_full_sync then
     t:set(DECLARATIVE_DEFAULT_WORKSPACE_KEY, kong.default_workspace)
   end
 
   local ok, err = t:commit()
   if not ok then
-    return nil, err
+    return nil, "failed to commit transaction: " .. err
   end
 
-  if wipe then
+  if is_full_sync then
     ngx_log(ngx_INFO, "[kong.sync.v2] full sync ends")
 
     kong.core_cache:purge()
@@ -425,16 +426,12 @@ local function do_sync()
     -- Full sync could rebuild route, plugins and balancer route, so their
     -- hashes are nil.
     local reconfigure_data = { kong.default_workspace, nil, nil, nil, }
-    local ok, err = events.declarative_reconfigure_notify(reconfigure_data)
-    if not ok then
-      return nil, err
-    end
+    return events.declarative_reconfigure_notify(reconfigure_data)
+  end
 
-  else
-    for _, event in ipairs(crud_events) do
-      -- delta_type, crud_event_type, delta.entity, old_entity
-      db[event[1]]:post_crud_event(event[2], event[3], event[4])
-    end
+  for _, event in ipairs(crud_events) do
+    -- delta_type, crud_event_type, delta.entity, old_entity
+    db[event[1]]:post_crud_event(event[2], event[3], event[4])
   end
 
   return true

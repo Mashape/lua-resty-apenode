@@ -33,7 +33,7 @@ function RpcSyncV2NotifyNewVersioinTestHandler:init_worker()
     ngx.log(ngx.DEBUG, "kong.sync.v2.get_delta ok: ", counter)
     counter = counter + 1
 
-    return { default = { deltas = deltas, wipe = true, }, }
+    return { default = { deltas = deltas, full_sync = true, }, }
   end)
 
   -- test dp's sync.v2.notify_new_version on cp side

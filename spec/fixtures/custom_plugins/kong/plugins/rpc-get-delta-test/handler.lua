@@ -30,7 +30,7 @@ function RpcSyncV2GetDeltaTestHandler:init_worker()
 
     assert(type(res) == "table")
     assert(not isempty(res.default.deltas))
-    assert(res.default.wipe == true)
+    assert(res.default.full_sync == true)
     assert(not err)
 
     -- dp's version is greater than cp's version
@@ -39,7 +39,7 @@ function RpcSyncV2GetDeltaTestHandler:init_worker()
 
     assert(type(res) == "table")
     assert(not isempty(res.default.deltas))
-    assert(res.default.wipe == true)
+    assert(res.default.full_sync == true)
     assert(not err)
 
     -- dp's version is equal to cp's version
@@ -48,7 +48,7 @@ function RpcSyncV2GetDeltaTestHandler:init_worker()
 
     assert(type(res) == "table")
     assert(isempty(res.default.deltas))
-    assert(res.default.wipe == false)
+    assert(res.default.full_sync == false)
     assert(not err)
 
     ngx.log(ngx.DEBUG, "kong.sync.v2.get_delta ok")
