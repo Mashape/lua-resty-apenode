@@ -154,6 +154,7 @@ local constants = {
     "filter_chains",
   },
   ENTITY_CACHE_STORE = setmetatable({
+    workspaces = "core_cache",
     consumers = "cache",
     certificates = "core_cache",
     services = "core_cache",
@@ -164,9 +165,12 @@ local constants = {
     plugins = "core_cache",
     tags = "cache",
     ca_certificates = "core_cache",
+    clustering_data_planes = "core_cache",
+    parameters = "core_cache",
     vaults = "core_cache",
     key_sets = "core_cache",
     keys = "core_cache",
+    filter_chains = "core_cache",
   }, {
     __index = function()
       return "cache"
