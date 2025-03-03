@@ -307,6 +307,9 @@ for _, strategy in helpers.each_strategy() do
                                     .. "/post_log/custom_http",
           custom_fields_by_lua = {
             new_field = "return 123",
+            ["nested.keys"] = "return 456",
+            ["escape\\.dots"] = "return 789",
+            ["nested.escape\\.dots"] = "return 135",
             route = "return nil", -- unset route field
           },
         }
@@ -452,6 +455,9 @@ for _, strategy in helpers.each_strategy() do
         local entries = get_log("custom_http", 1)
         assert.same("127.0.0.1", entries[1].client_ip)
         assert.same(123, entries[1].new_field)
+        assert.same(456, entries[1].nested.keys)
+        assert.same(789, entries[1]["escape.dots"])
+        assert.same(135, entries[1].nested["escape.dots"])
       end)
     end)
 

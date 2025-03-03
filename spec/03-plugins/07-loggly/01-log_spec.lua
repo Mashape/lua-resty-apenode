@@ -94,6 +94,9 @@ for _, strategy in helpers.each_strategy() do
           key  = "123456789",
           custom_fields_by_lua = {
             new_field = "return 123",
+            ["nested.keys"] = "return 456",
+            ["escape\\.dots"] = "return 789",
+            ["nested.escape\\.dots"] = "return 135",
             route = "return nil", -- unset route field
           }
         }
@@ -339,6 +342,9 @@ for _, strategy in helpers.each_strategy() do
         }, 500)
         assert.equal("14", pri)
         assert.equal(123, message.new_field)
+        assert.same(456, message.nested.keys)
+        assert.same(789, message["escape.dots"])
+        assert.same(135, message.nested["escape.dots"])
       end)
       it("unsets existing log values", function()
         local pri, message = run({

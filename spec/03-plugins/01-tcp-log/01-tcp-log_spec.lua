@@ -185,6 +185,9 @@ for _, strategy in helpers.each_strategy() do
           port   = TCP_PORT,
           custom_fields_by_lua = {
             new_field = "return 123",
+            ["nested.keys"] = "return 456",
+            ["escape\\.dots"] = "return 789",
+            ["nested.escape\\.dots"] = "return 135",
             route = "return nil", -- unset route field
           }
         },
@@ -262,6 +265,9 @@ for _, strategy in helpers.each_strategy() do
 
         -- Since it's over HTTP, let's make sure there are no TLS information
         assert.same(123, log_message.new_field)
+        assert.same(456, log_message.nested.keys)
+        assert.same(789, log_message["escape.dots"])
+        assert.same(135, log_message.nested["escape.dots"])
       end)
 
       it("unsets existing log values", function()

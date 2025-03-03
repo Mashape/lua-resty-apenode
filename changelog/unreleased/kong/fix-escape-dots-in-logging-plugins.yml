@@ -1,0 +1,3 @@
+message: "Users can now use a backslash to escape dots in logging plugins' `custom_fields_by_lua`  key strings, preventing dots from creating nested tables."
+type: bugfix
+scope: PDK

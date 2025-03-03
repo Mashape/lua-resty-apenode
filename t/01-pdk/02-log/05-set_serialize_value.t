@@ -3,7 +3,7 @@ use warnings FATAL => 'all';
 use Test::Nginx::Socket::Lua;
 do "./t/Util.pm";
 
-plan tests => 49;
+plan tests => 51;
 
 run_tests();
 
@@ -186,6 +186,14 @@ add existing value does not set it true
             pdk.log.set_serialize_value("foo.bar.baz", 3, { mode = "add" })
             local s = pdk.log.serialize({ kong = pdk })
             pdk.log.info("add existing deep leaf does not change it", s.foo.bar.baz == 2)
+
+            pdk.log.set_serialize_value("foo4\\.bar\\.baz", 4, { mode = "add" })
+            local s = pdk.log.serialize({ kong = pdk })
+            pdk.log.info("add new branch with dots escaped creates it ", s["foo4.bar.baz"] == 4)
+
+            pdk.log.set_serialize_value("foo4.bar\\.baz", 4, { mode = "add" })
+            local s = pdk.log.serialize({ kong = pdk })
+            pdk.log.info("add new branch with nested and dots escaped creates it ", s.foo4["bar.baz"] == 4)
         }
     }
 
@@ -202,6 +210,8 @@ replace existing deep leaf changes it true
 add new deep leaf to root adds it true
 add new branch creates it true
 add existing deep leaf does not change it
+add new branch with dots escaped creates it true
+add new branch with nested and dots escaped creates it true
 --- no_error_log
 [error]
 

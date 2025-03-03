@@ -28,6 +28,7 @@ local dynamic_hook = require("kong.dynamic_hook")
 
 
 local sub = string.sub
+local gsub = string.gsub
 local type = type
 local error = error
 local pairs = pairs
@@ -48,6 +49,8 @@ local byte = string.byte
 
 
 local DOT_BYTE = byte(".")
+local ESCAPE_BYTE = byte("\\")
+local DOT_SUB_PATTERN = "\\."
 local FFI_ERROR = require("resty.core.base").FFI_ERROR
 
 
@@ -633,6 +636,10 @@ local _log_mt = {
 -- kong.log.set_serialize_value("my.new.value", 4)
 -- assert(kong.log.serialize().my.new.value == 4)
 --
+-- -- Dots in the key can be escapted by backslash
+-- kong.log.set_serialize_value("my\.new\.value", 5)
+-- assert(kong.log.serialize()["my.new.value"] == 5)
+--
 local function set_serialize_value(key, value, options)
   check_phase(phases_with_ctx)
 
@@ -719,8 +726,8 @@ do
       local node = root
       local start = 1
       for i = 2, #key do
-        if byte(key, i) == DOT_BYTE then
-          local subkey = sub(key, start, i - 1)
+        if byte(key, i) == DOT_BYTE and byte(key, i - 1) ~= ESCAPE_BYTE then
+          local subkey = gsub(sub(key, start, i - 1), DOT_SUB_PATTERN, ".")
           start = i + 1
           if node[subkey] == nil then
             if is_set_or_add then
@@ -740,7 +747,7 @@ do
       end
 
       if type(node) == "table" then
-        local last_subkey = sub(key, start)
+        local last_subkey = gsub(sub(key, start), DOT_SUB_PATTERN, ".")
         local existing_value = node[last_subkey]
         if (mode == "set")
         or (mode == "add"     and existing_value == nil)
