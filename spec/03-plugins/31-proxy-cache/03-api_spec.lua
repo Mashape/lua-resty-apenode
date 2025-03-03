@@ -259,6 +259,27 @@ describe("Plugin: proxy-cache", function()
         assert.res_status(200, res)
         assert.same("Miss", res.headers["X-Cache-Status"])
       end)
+      it("miss if pass the Accept-Encoding", function()
+        local res = assert(proxy_client:get("/get", {
+          headers = {
+            host = "route-1.test",
+            ["kong-debug"] = 1,
+            ["Accept-Encoding"] = "gzip",
+          }
+        }))
+        assert.res_status(200, res)
+        assert.same("Miss", res.headers["X-Cache-Status"])
+        -- gzip request should be cached
+        res = assert(proxy_client:get("/get", {
+          headers = {
+            host = "route-1.test",
+            ["kong-debug"] = 1,
+            ["Accept-Encoding"] = "gzip",
+          }
+        }))
+        assert.res_status(200, res)
+        assert.same("Hit", res.headers["X-Cache-Status"])
+      end)
       it("purge all the cache entries", function()
         -- make a `Hit` request to `route-1`
         local res = assert(proxy_client:get("/get", {
