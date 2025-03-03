@@ -355,8 +355,8 @@ local function marshall_route(r)
       else
         -- plain host matching
         has_host_plain = true
-        append(hosts_t, { value = host })
-        hosts_t[host] = host
+        append(hosts_t, { value = lower(host) })
+        hosts_t[lower(host)] = host
       end
     end
 
@@ -1648,7 +1648,7 @@ function _M.new(routes, cache, cache_neg)
       elseif match_wildcard_hosts then
         for i = 1, wildcard_hosts[0] do
           local host = wildcard_hosts[i]
-          local from, _, err = re_find(host_with_port, host.regex, "ajo")
+          local from, _, err = re_find(host_with_port, host.regex, "ajoi")
           if err then
             log(ERR, "could not match wildcard host: ", err)
             return
@@ -1758,6 +1758,8 @@ function _M.new(routes, cache, cache_neg)
       local req_host = get_header("host", ctx)
       local req_scheme = ctx and ctx.scheme or var.scheme
       local sni = server_name()
+
+      req_host = req_host and lower(req_host) or nil
 
       local headers
       if match_headers then
