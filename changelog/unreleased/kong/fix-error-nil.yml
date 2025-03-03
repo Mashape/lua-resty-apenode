@@ -1,0 +1,3 @@
+message: Fix an issue where an error running `init_worker` for a plugin was hidden due to improper nil handling
+type: bugfix
+scope: Core
