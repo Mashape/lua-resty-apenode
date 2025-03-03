@@ -47,18 +47,18 @@ local function start_grpc_target()
   assert(make(CONSTANTS.GRPC_TARGET_SRC_PATH, {
     {
       target = "targetservice/targetservice.pb.go",
-      src    = { "../targetservice.proto" },
-      cmd    = "protoc --go_out=. --go-grpc_out=. -I ../ ../targetservice.proto",
+      src    = { "proto/targetservice.proto" },
+      cmd    = "protoc --go_out=. --go-grpc_out=. -I proto/ proto/targetservice.proto",
     },
     {
       target = "targetservice/targetservice_grpc.pb.go",
-      src    = { "../targetservice.proto" },
-      cmd    = "protoc --go_out=. --go-grpc_out=. -I ../ ../targetservice.proto",
+      src    = { "proto/targetservice.proto" },
+      cmd    = "protoc --go_out=. --go-grpc_out=. -I proto/ proto/targetservice.proto",
     },
     {
       target = "target",
-      src    = { "grpc-target.go", "targetservice/targetservice.pb.go", "targetservice/targetservice_grpc.pb.go" },
-      cmd    = "go mod tidy && go mod download all && go build",
+      src    = { "target.go", "targetservice/targetservice.pb.go", "targetservice/targetservice_grpc.pb.go" },
+      cmd    = "go mod tidy && go mod download all && go build -o target",
     },
   }))
   grpc_target_proc = assert(ngx_pipe.spawn({ CONSTANTS.GRPC_TARGET_SRC_PATH .. "/target" }, {
