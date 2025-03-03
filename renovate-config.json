@@ -1,0 +1,5 @@
+{
+  "extends": [
+    "github>Kong/public-shared-renovate:gateway.json5"
+  ]
+}
