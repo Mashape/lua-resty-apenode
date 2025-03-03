@@ -107,7 +107,7 @@ for _, strategy in helpers.each_strategy() do
 for _, vault in ipairs(VAULTS) do
 
 describe("vault ttl and rotation (#" .. strategy .. ") #" .. vault.name, function()
-  local client
+  local client, admin_client, vault_id
   local secret = "my-secret"
 
 
@@ -139,11 +139,11 @@ describe("vault ttl and rotation (#" .. strategy .. ") #" .. vault.name, functio
                                     { vault.name })
 
 
-    assert(bp.vaults:insert({
+    vault_id = assert(bp.vaults:insert({
       name     = vault.name,
       prefix   = vault.prefix,
       config   = vault.config,
-    }))
+    })).id
 
     local route = assert(bp.routes:insert({
       name      = vault.host,
@@ -172,6 +172,7 @@ describe("vault ttl and rotation (#" .. strategy .. ") #" .. vault.name, functio
     }, nil, nil, vault:fixtures() ))
 
     client = helpers.proxy_client()
+    admin_client = helpers.admin_client()
   end)
 
 
@@ -215,6 +216,51 @@ describe("vault ttl and rotation (#" .. strategy .. ") #" .. vault.name, functio
 
     vault:update_secret(secret, "new", { ttl = 5 })
     check_plugin_secret("new", 5)
+  end)
+
+  it("return stale secret instead of empty string after changed vault config", function()
+    local function check_plugin_secret(expect, ttl, leeway)
+      leeway = leeway or 0.25 -- 25%
+
+      local timeout = ttl + (ttl * leeway)
+
+      assert
+        .with_timeout(timeout)
+        .with_step(0.5)
+        .eventually(function()
+          local res = http_get("/")
+          local value = assert.response(res).has.header(DUMMY_HEADER)
+
+          if value == expect then
+            return true
+          end
+
+          return nil, { expected = expect, got = value }
+        end)
+        .is_truthy("expected plugin secret to be updated to '" .. expect .. "' "
+                .. "' within " .. tostring(timeout) .. "seconds")
+    end
+
+    vault:update_secret(secret, "init", { ttl = 5 })
+    check_plugin_secret("init", 5)
+
+    vault:update_secret(secret, "new-secret", { ttl = 5 })
+    -- Change vault config.
+    local res = admin_client:patch("/vaults/" .. vault_id, {
+      body = {
+        config = {
+          -- Add a latency to vault provider to make the rotation stuck.
+          latency = 2,
+        },
+      },
+      headers = { ["Content-Type"] = "application/json" },
+    })
+    assert.response(res).has.status(200)
+
+    -- When the rotation is stuck and LRU cache is flushed, should return stale value instead of empty string.
+    check_plugin_secret("init", 5)
+    -- The rotation eventually succeeds.
+    check_plugin_secret("new-secret", 5)
   end)
 end)
 
