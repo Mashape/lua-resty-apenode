@@ -48,11 +48,24 @@ Once the build is complete, you will see four `bazel-*` folders in the current d
 
 ### Development environment
 
-To use the build as a virtual development environment, run:
+To use the build as a virtual development environment, build the `//build:venv`
+target:
 
 ```bash
 bazel build //build:venv --verbose_failures
-. ./bazel-bin/build/kong-dev-venv.sh
+```
+
+This generates files in `./bazel-bin/build` that can be used to initialize your
+development environment.
+
+#### bash/fish shell
+
+```sh
+# bash
+source ./bazel-bin/build/kong-dev-venv.sh
+
+# fish
+source ./bazel-bin/build/kong-dev-venv.fish
 ```
 
 This operation primarily accomplishes the following:
@@ -60,6 +73,56 @@ This operation primarily accomplishes the following:
 1. Add the Bazel build output folder containing `resty`, `luarocks` and other commands to `$PATH` so that the commands in the build output can be used directly.
 2. Set and specify the runtime path for Kong.
 3. Provide Bash functions to start and stop the database and other third-party dependency services required for Kong development environment using Docker, read more: [Start Kong](../DEVELOPER#start-kong).
+
+#### direnv
+
+The `//build:venv` target also creates a file at `bazel-bin/build/{{build_name}}-venv-envrc`
+which is suitable to include in your [direnv](https://direnv.net) workflow.
+
+Example `.envrc` file:
+
+```sh
+BUILD_NAME=kong-dev
+source_env_if_exists "bazel-bin/build/${BUILD_NAME}-venv.envrc"
+```
+
+Example with a kong checkout at `~/git/kong/kong` and an `.envrc` file:
+
+```
+$ direnv reload
+direnv: loading ~/git/kong/kong/bazel-bin/build/kong-dev-venv.envrc
+LuaRocks: /home/michaelm/git/kong/kong/bazel-bin/build/kong-dev
+OpenResty: /home/michaelm/git/kong/kong/bazel-bin/build/kong-dev/openresty
+OpenSSL: /home/michaelm/git/kong/kong/bazel-bin/external/openssl/openssl
+direnv: export +CRYPTO_DIR +KONG_OPENRESTY_PATH +KONG_TEST_OPENRESTY_PATH +LIBRARY_PREFIX +OPENSSL_DIR +OPENSSL_INCDIR +_KONG_REPO ~LUAROCKS_CONFIG ~LUA_CPATH ~LUA_PATH ~MANPATH ~PATH
+
+$ which kong resty nginx openssl lua luajit luarocks busted luacheck
+~/git/kong/kong/bin/kong
+~/git/kong/kong/bazel-bin/build/kong-dev/openresty/bin/resty
+~/git/kong/kong/bazel-bin/build/kong-dev/openresty/nginx/sbin/nginx
+~/git/kong/kong/bazel-bin/external/openssl/openssl/bin/openssl
+~/git/kong/kong/bazel-bin/build/kong-dev/openresty/luajit/bin/lua
+~/git/kong/kong/bazel-bin/build/kong-dev/openresty/luajit/bin/luajit
+~/git/kong/kong/bazel-bin/build/kong-dev/bin/luarocks
+~/git/kong/kong/bin/busted
+~/git/kong/kong/bazel-bin/build/kong-dev/bin/luacheck
+```
+
+The following environment variables will be managed by direnv:
+* `CRYPTO_DIR`
+* `KONG_OPENRESTY_PATH`
+* `KONG_TEST_OPENRESTY_PATH`
+* `LIBRARY_PREFIX`
+* `LUAROCKS_CONFIG`
+* `LUA_CPATH`
+* `LUA_PATH`
+* `MANPATH`
+* `OPENSSL_DIR`
+* `OPENSSL_INCDIR`
+* `PATH`
+
+**NOTE:** direnv does not support exported shell functions, so `start_services`
+and `stop_services` functions are not provided.
 
 ###  C module and Nginx development
 
@@ -96,7 +159,7 @@ Each targets under `//build:install` installs an independent component that
 composes the Kong runtime environment. We can query `deps(//build:install, 1)`
 recursively to find the target that only build and install specific component.
 This would be useful if one is debugging the issue of a specific target without
-the need to build whole Kong runtime environment. 
+the need to build whole Kong runtime environment.
 
 We can use the target labels to build the dependency directly, for example:
 
