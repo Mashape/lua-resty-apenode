@@ -409,13 +409,15 @@ describe("[DNS client cache]", function()
       -- in the cache, as in some cases lookups of certain types (eg. CNAME) are
       -- blocked, and then we rely on the A record to get them in the AS
       -- (additional section), but then they must be stored obviously.
-      local CNAME1 = {
+      local CNAME_from_A_query = {
         type = client.TYPE_CNAME,
         cname = "myotherhost.domain.com",
         class = 1,
         name = "myhost9.domain.com",
         ttl = 0.1,
       }
+      -- copy to make it different
+      local CNAME_from_CNAME_query = utils.cycle_aware_deep_copy(CNAME_from_A_query)
       local A2 = {
         type = client.TYPE_A,
         address = "1.2.3.4",
@@ -424,8 +426,8 @@ describe("[DNS client cache]", function()
         ttl = 60,
       }
       mock_records = setmetatable({
-        ["myhost9.domain.com:"..client.TYPE_CNAME] = { utils.cycle_aware_deep_copy(CNAME1) },  -- copy to make it different
-        ["myhost9.domain.com:"..client.TYPE_A] = { CNAME1, A2 },  -- not there, just a reference and target
+        ["myhost9.domain.com:"..client.TYPE_CNAME] = { CNAME_from_CNAME_query },
+        ["myhost9.domain.com:"..client.TYPE_A] = { CNAME_from_A_query, A2 },  -- not there, just a reference and target
         ["myotherhost.domain.com:"..client.TYPE_A] = { A2 },
       }, {
         -- do not do lookups, return empty on anything else
@@ -436,11 +438,115 @@ describe("[DNS client cache]", function()
       })
 
       assert(client.resolve("myhost9", { qtype = client.TYPE_CNAME }))
+      local cached = lrucache:get(client.TYPE_CNAME..":myhost9.domain.com")
+      assert.are.equal(CNAME_from_CNAME_query, cached[1])
+      assert.are.not_equal(CNAME_from_A_query, cached[1])
+
       ngx.sleep(0.2)  -- wait for it to become stale
+
       assert(client.toip("myhost9"))
 
+      -- CNAME entries are not stored into cache as `intermediates` for A type
+      -- queries, only A entries are stored.
+      cached = lrucache:get(client.TYPE_A..":myhost9.domain.com")
+      assert.are.equal(A2, cached[1])
+
+      -- The original cached CNAME entry will not be replaced by new CNAME entry.
+      cached = lrucache:get(client.TYPE_CNAME..":myhost9.domain.com")
+      assert.are.equal(CNAME_from_CNAME_query, cached[1])
+      assert.are.not_equal(CNAME_from_A_query, cached[1])
+    end)
+
+    it("No RRs match the queried type", function()
+      mock_records = {
+        ["myhost9.domain.com:"..client.TYPE_A] = {
+          {
+            type = client.TYPE_CNAME,
+            cname = "myotherhost.domain.com",
+            class = 1,
+            name = "myhost9.domain.com",
+            ttl = 60,
+          },
+        },
+      }
+
+      local res, _, try_list = client.resolve("myhost9", {})
+      assert.matches(tostring(try_list), '"myhost9.domain.com:1 - cache-miss/querying/dns client error: 101 empty record received"')
+      assert.is_nil(res)
+    end)
+  end)
+
+  describe("fqdn (simple dns_order)", function()
+
+    local lrucache, mock_records, config
+    before_each(function()
+      config = {
+        nameservers = { "198.51.100.0" },
+        ndots = 1,
+        hosts = {},
+        resolvConf = {},
+        order = { "LAST", "A" },
+        badTtl = 0.5,
+        staleTtl = 0.5,
+        enable_ipv6 = false,
+      }
+      assert(client.init(config))
+      lrucache = client.getcache()
+
+      resolver.query_func = function(self, original_query_func, qname, opts)
+        return mock_records[qname..":"..opts.qtype] or { errcode = 3, errstr = "name error" }
+      end
+    end)
+
+    -- FTI-5834
+    it("only query A type", function()
+      local CNAME = {
+        type = client.TYPE_CNAME,
+        cname = "myotherhost.domain.com",
+        class = 1,
+        name = "myhost9.domain.com",
+        ttl = 60,
+      }
+      local A = {
+        type = client.TYPE_A,
+        address = "1.2.3.4",
+        class = 1,
+        name = "myotherhost.domain.com",
+        ttl = 60,
+      }
+      mock_records = {
+        ["myhost9.domain.com:"..client.TYPE_A] = { CNAME, A }
+      }
+
+      local res = client.resolve("myhost9.domain.com")
+      -- The record's name has been fixed to the queried name.
+      assert.equal("myhost9.domain.com", res[1].name)
+      assert.equal(A, res[1])
+
+      local success = lrucache:get("myhost9.domain.com")
+      assert.equal(client.TYPE_A, success)
+
+      -- The CNAME records have been removed due to a mismatch with type A.
       local cached = lrucache:get(client.TYPE_CNAME..":myhost9.domain.com")
-      assert.are.equal(CNAME1, cached[1])
+      assert.is_nil(cached)
+    end)
+
+    it("No RRs match the queried type", function()
+      mock_records = {
+        ["myhost9.domain.com:"..client.TYPE_A] = {
+          {
+            type = client.TYPE_CNAME,
+            cname = "myotherhost.domain.com",
+            class = 1,
+            name = "myhost9.domain.com",
+            ttl = 60,
+          },
+        },
+      }
+
+      local res, err = client.resolve("myhost9.domain.com", {})
+      assert.equal('dns client error: 101 empty record received', err)
+      assert.is_nil(res)
     end)
 
   end)
@@ -526,9 +632,15 @@ describe("[DNS client cache]", function()
           },
         }
       }
+
       client.toip("demo.service.consul")
+
+      -- It only stores SRV target entry into cache, not storing A entry.
       local success = client.getcache():get("192.168.5.232.node.api_test.consul")
-      assert.equal(client.TYPE_A, success)
+      assert.is_nil(success)
+
+      success = client.getcache():get("demo.service.consul")
+      assert.equal(client.TYPE_SRV, success)
     end)
 
     it("are not overwritten by add. section info", function()

@@ -790,29 +790,29 @@ describe("[DNS client]", function()
     -- check first CNAME
     local key1 = client.TYPE_CNAME..":"..host
     local entry1 = lrucache:get(key1)
-    assert.are.equal(host, entry1[1].name)       -- the 1st record is the original 'smtp.'..TEST_DOMAIN
-    assert.are.equal(client.TYPE_CNAME, entry1[1].type) -- and that is a CNAME
+    assert.is_nil(entry1)
 
     -- check second CNAME
-    local key2 = client.TYPE_CNAME..":"..entry1[1].cname
+    local key2 = client.TYPE_CNAME..":thuis.kong-gateway-testing.link"
     local entry2 = lrucache:get(key2)
-    assert.are.equal(entry1[1].cname, entry2[1].name) -- the 2nd is the middle 'thuis.'..TEST_DOMAIN
-    assert.are.equal(client.TYPE_CNAME, entry2[1].type) -- and that is also a CNAME
+    assert.is_nil(entry2)
 
-    -- check second target to match final record
-    assert.are.equal(entry2[1].cname, answers[1].name)
-    assert.are.not_equal(host, answers[1].name)  -- we got final name 'wdnaste.duckdns.org'
-    assert.are.equal(typ, answers[1].type)       -- we got a final A type record
+    assert.are.equal(host, answers[1].name) -- we got final name same to host
+    assert.are.equal(typ, answers[1].type)  -- we got a final A type record
     assert.are.equal(#answers, 1)
 
     -- check last successful lookup references
     local lastsuccess3 = lrucache:get(answers[1].name)
-    local lastsuccess2 = lrucache:get(entry2[1].name)
-    local lastsuccess1 = lrucache:get(entry1[1].name)
+    local lastsuccess2 = lrucache:get("thuis.kong-gateway-testing.link")
+    local lastsuccess1 = lrucache:get("kong-gateway-testing.link")
     assert.are.equal(client.TYPE_A, lastsuccess3)
-    assert.are.equal(client.TYPE_CNAME, lastsuccess2)
-    assert.are.equal(client.TYPE_CNAME, lastsuccess1)
+    assert.is_nil(lastsuccess2)
+    assert.is_nil(lastsuccess1)
 
+    -- check entries in the intermediate cache against the final output result
+    local key = client.TYPE_A .. ":" .. host
+    local entry = lrucache:get(key)
+    assert.same(answers, entry)
   end)
 
   it("fetching multiple SRV records (un-typed)", function()
@@ -845,17 +845,18 @@ describe("[DNS client]", function()
     -- first check CNAME
     local key = client.TYPE_CNAME..":"..host
     local entry = lrucache:get(key)
-    assert.are.equal(host, entry[1].name)
-    assert.are.equal(client.TYPE_CNAME, entry[1].type)
+    assert.is_nil(entry)
 
     -- check final target
-    assert.are.equal(entry[1].cname, answers[1].name)
     assert.are.equal(typ, answers[1].type)
-    assert.are.equal(entry[1].cname, answers[2].name)
     assert.are.equal(typ, answers[2].type)
-    assert.are.equal(entry[1].cname, answers[3].name)
     assert.are.equal(typ, answers[3].type)
     assert.are.equal(#answers, 3)
+
+    -- check entries in the intermediate cache against the final output result
+    key = client.TYPE_SRV .. ":" .. host
+    entry = lrucache:get(key)
+    assert.same(answers, entry)
   end)
 
   it("fetching non-type-matching records", function()
@@ -1934,6 +1935,109 @@ describe("[DNS client]", function()
 
     -- all results are unique, each call got its own query
     assert.equal(call_count, 10)
+  end)
+
+  it("disable additional section when querying", function()
+
+    local function build_dns_reply(id, name, ip, ns_ip1, ns_ip2)
+      local function dns_encode_name(name)
+        local parts = {}
+        for part in string.gmatch(name, "[^.]+") do
+          table.insert(parts, string.char(#part) .. part)
+        end
+        table.insert(parts, "\0")
+        return table.concat(parts)
+      end
+
+      local function ip_to_bytes(ip)
+        local bytes = { "\x00\x04" }  -- RDLENGTH:4bytes (ipv4)
+        for octet in string.gmatch(ip, "%d+") do
+          table.insert(bytes, string.char(tonumber(octet)))
+        end
+        return table.concat(bytes)
+      end
+
+      local package = {}
+
+      -- Header
+      package[#package+1] = id
+      package[#package+1] = "\x85\x00"  -- QR, AA, RD
+      package[#package+1] = "\x00\x01\x00\x01\x00\x00\x00\x02"  -- QD:1 AN:1 NS:0 AR:2
+
+      -- Question
+      package[#package+1] = dns_encode_name(name)
+      package[#package+1] = "\x00\x01\x00\x01"  -- QTYPE A; QCLASS IN
+
+      -- Answer
+      package[#package+1] = dns_encode_name(name)
+      package[#package+1] = "\x00\x01\x00\x01\x00\x00\x00\x30"  -- QTYPE:A; QCLASS:IN TTL:48
+      package[#package+1] = ip_to_bytes(ip)
+
+      -- Additional
+      local function add_additional(name, ip)
+        package[#package+1] = dns_encode_name(name)
+        package[#package+1] = "\x00\x01\x00\x01\x00\x00\x00\x30"  -- QTYPE:A; QCLASS:IN TTL:48
+        package[#package+1] = ip_to_bytes(ip)
+      end
+
+      add_additional("ns1." .. name, ns_ip1)
+      add_additional("ns2." .. name, ns_ip2)
+
+      return table.concat(package)
+    end
+
+    local force_enable_additional_section = false
+
+    -- dns client will ignore additional section
+    resolver.query_func = function(self, original_query_func, name, options)
+      if options.qtype ~= client.TYPE_A then
+        return { errcode = 5, errstr = "refused" }
+      end
+
+      if force_enable_additional_section then
+        options.additional_section = true
+      end
+
+      self.tcp_sock = nil -- disable TCP query
+
+      local id
+      local sock = assert(self.socks[1])
+      -- hook send to get id
+      local orig_sock_send = sock.send
+      sock.send = function (self, query)
+        id = query[1] ..  query[2]
+        return orig_sock_send(self, query)
+      end
+      -- hook receive to reply raw data
+      sock.receive = function (self, size)
+        return build_dns_reply(id, name, "1.1.1.1", "2.2.2.2", "3.3.3.3")
+      end
+
+      return original_query_func(self, name, options)
+    end
+
+    local name = "additional-section.test"
+
+    -- no additional_section by default
+    assert(client.init({ search = {}, }))
+    local answers = client.resolve(name)
+    assert.equal(#answers, 1)
+    assert.same(answers[1].address, "1.1.1.1")
+
+    -- disable the additional_section option in r_opt
+    assert(client.init({ search = {}, }))
+    local answers = client.resolve(name, { additional_section = true })
+    assert.equal(#answers, 1)
+    assert.same(answers[1].address, "1.1.1.1")
+
+    -- test the buggy scenario
+    force_enable_additional_section = true
+    assert(client.init({ search = {}, }))
+    local answers = client.resolve(name)
+    assert.equal(#answers, 3)
+    assert.same(answers[1].address, "1.1.1.1")
+    assert.same(answers[2].address, "2.2.2.2")
+    assert.same(answers[3].address, "3.3.3.3")
   end)
 
 end)
