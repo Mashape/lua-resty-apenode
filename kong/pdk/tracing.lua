@@ -474,7 +474,7 @@ local function new_tracer(name, options)
   -- Returns the root span by default
   --
   -- @function kong.tracing.active_span
-  -- @phases rewrite, access, header_filter, response, body_filter, log, admin_api
+  -- @phases rewrite, access, header_filter, response, body_filter, log
   -- @treturn table span
   function self.active_span()
     if not VALID_TRACING_PHASES[ngx.get_phase()] then
@@ -487,7 +487,7 @@ local function new_tracer(name, options)
   --- Set the active span
   --
   -- @function kong.tracing.set_active_span
-  -- @phases rewrite, access, header_filter, response, body_filter, log, admin_api
+  -- @phases rewrite, access, header_filter, response, body_filter, log
   -- @tparam table span
   function self.set_active_span(span)
     if not VALID_TRACING_PHASES[ngx.get_phase()] then
@@ -504,7 +504,7 @@ local function new_tracer(name, options)
   --- Create a new Span
   --
   -- @function kong.tracing.start_span
-  -- @phases rewrite, access, header_filter, response, body_filter, log, admin_api
+  -- @phases rewrite, access, header_filter, response, body_filter, log
   -- @tparam string name span name
   -- @tparam table options
   -- @treturn table span
