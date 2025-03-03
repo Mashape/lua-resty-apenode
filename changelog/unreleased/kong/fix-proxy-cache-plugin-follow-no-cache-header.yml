@@ -1,0 +1,3 @@
+message: "**proxy-cache**: let cache action follow request `cache-control` header `no-cache` field base on rfc7234"
+type: bugfix
+scope: Plugin
