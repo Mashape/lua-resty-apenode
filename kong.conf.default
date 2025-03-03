@@ -345,6 +345,21 @@
                                  # - certificate content
                                  # - base64 encoded certificate content
 
+#cluster_rpc = off               # The setting to enable or disable RPC-based
+                                 # communication between control plane and data plane nodes.
+                                 # The valid values are `on` and `off`. Set to `on` to enable.
+                                 # If `cluster_rpc_sync` is set to `on`, this parameter
+                                 # must also be set to `on`.
+
+#cluster_rpc_sync = off          # The setting to enable or disable the incremental
+                                 # synchronization of configuration changes.
+                                 # The valid values are `on` and `off`. To enable, set this
+                                 # value to `on`, and set `cluster_rpc` to `on`.
+                                 # This setting will be ignored if `cluster_rpc` is `off`.
+                                 #
+                                 # In hybrid mode, this setting must be configured
+                                 # on both control plane and data plane nodes.
+
 #------------------------------------------------------------------------------
 # HYBRID MODE DATA PLANE
 #------------------------------------------------------------------------------
