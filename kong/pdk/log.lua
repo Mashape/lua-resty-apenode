@@ -276,15 +276,19 @@ end
 
 ---
 -- Similar to `kong.log()`, but the produced log has the severity given by
--- `<level>`, instead of `notice`. The supported levels are:
+-- `<level>`, instead of `notice`. For each message written to the logs,
+-- carefully consider who the target audience is, and set the level accordingly.
+-- The supported levels are:
 --
--- * `kong.log.alert()`
--- * `kong.log.crit()`
--- * `kong.log.err()`
--- * `kong.log.warn()`
--- * `kong.log.notice()`
--- * `kong.log.info()`
--- * `kong.log.debug()`
+-- function | usage | audience
+-- -|-|-
+-- `kong.log.alert()` | Conditions that require immediate intervention. | Platform operators
+-- `kong.log.crit()`  | Errors that indicate serious failures in Kong or the underlying system. | Platform operators
+-- `kong.log.err()`   | Serious issues that prevent proper request handling but do not cause Kong to stop/fail. | Platform operators
+-- `kong.log.warn()`  | Warnings about potential issues that may require intervention but are not immediate failures. | Platform operators
+-- `kong.log.notice()`| Typically used for plugin flow analysis, eg. authentication failures. | Plugin author/user
+-- `kong.log.info()`  | Used for debugging plugins. Consider this the `debug` level for plugins. | Plugin author
+-- `kong.log.debug()` | Reserved for the core engine debug logs, do not use this for plugins. | Kong support/engineering
 --
 -- Logs have the same format as that of `kong.log()`. For
 -- example, the following call:
