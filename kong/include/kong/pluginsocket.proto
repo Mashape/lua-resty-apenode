@@ -305,6 +305,7 @@ service Kong {
     rpc Request_GetHttpVersion(google.protobuf.Empty) returns (Number);
     rpc Request_GetMethod(google.protobuf.Empty) returns (String);
     rpc Request_GetPath(google.protobuf.Empty) returns (String);
+    rpc Request_GetRawPath(google.protobuf.Empty) returns (String);
     rpc Request_GetPathWithQuery(google.protobuf.Empty) returns (String);
     rpc Request_GetRawQuery(google.protobuf.Empty) returns (String);
     rpc Request_GetQueryArg(String) returns (String);
