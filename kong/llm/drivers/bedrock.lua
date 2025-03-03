@@ -570,6 +570,9 @@ function _M.configure_request(conf, aws_sdk)
   -- if the path is read from a URL capture, ensure that it is valid
   parsed_url.path = (parsed_url.path and string_gsub(parsed_url.path, "^/*", "/")) or "/"
 
+  -- escape the path in case it contains special characters
+  parsed_url.path = ngx.escape_uri(parsed_url.path)
+
   ai_shared.override_upstream_url(parsed_url, conf)
 
   kong.service.request.set_path(parsed_url.path)
@@ -583,7 +586,8 @@ function _M.configure_request(conf, aws_sdk)
   local r = {
     headers = {},
     method = ai_shared.operation_map[DRIVER_NAME][conf.route_type].method,
-    path = parsed_url.path,
+    -- the path is unescaped as the IAM auth required the unescaped value
+    path = ngx.unescape_uri(parsed_url.path),
     host = parsed_url.host,
     port = tonumber(parsed_url.port) or 443,
     body = kong.request.get_raw_body()
