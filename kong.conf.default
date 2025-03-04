@@ -1466,7 +1466,9 @@
 # By default, the DNS resolver will use the standard configuration files
 # `/etc/hosts` and `/etc/resolv.conf`. The settings in the latter file will be
 # overridden by the environment variables `LOCALDOMAIN` and `RES_OPTIONS` if
-# they have been set.
+# they have been set. To use these environment variables, set the option
+# `nginx_main_env = RES_OPTIONS; env LOCALDOMAIN`. Otherwise, Nginx will
+# removes these environment variables when starting worker processes.
 #
 # Kong will resolve hostnames as either `SRV` or `A` records (in that order, and
 # `CNAME` records will be dereferenced in the process).
