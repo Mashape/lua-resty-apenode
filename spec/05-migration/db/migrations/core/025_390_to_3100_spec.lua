@@ -27,4 +27,8 @@ describe("database migration", function()
 
     assert.is.equal(max_value, 9223372036854775807)
   end)
+
+  uh.old_after_up("has created the expected new columns", function()
+    assert.table_has_column("keys", "x5t", "text")
+  end)
 end)
