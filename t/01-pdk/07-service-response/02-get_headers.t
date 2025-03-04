@@ -11,7 +11,359 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: service.response.get_headers() returns a table
+=== TEST 1: service.response.get_headers() returns an iterable table (non-buffered)
+--- http_config eval
+qq{
+    $t::Util::HttpConfig
+
+    server {
+        listen unix:$ENV{TEST_NGINX_NXSOCK}/nginx.sock;
+
+        location / {
+            content_by_lua_block {
+                ngx.header.Foo = "Hello"
+            }
+        }
+    }
+}
+--- config
+    location /t {
+        proxy_pass http://unix:$TEST_NGINX_NXSOCK/nginx.sock;
+
+        header_filter_by_lua_block {
+            ngx.header.content_length = nil
+        }
+
+        body_filter_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            local headers = pdk.service.response.get_headers()
+            ngx.arg[1] = "type: " .. type(headers) .. "\nfirst: " .. (next(headers) and "exists" or "nil")
+            ngx.arg[2] = true
+        }
+    }
+--- request
+GET /t
+--- response_body chop
+type: table
+first: exists
+--- no_error_log
+[error]
+
+
+
+=== TEST 2: service.response.get_headers() returns an iterable table (buffered)
+--- http_config eval
+qq{
+    $t::Util::HttpConfig
+
+    server {
+        listen unix:$ENV{TEST_NGINX_NXSOCK}/nginx.sock;
+
+        location / {
+            content_by_lua_block {
+                ngx.header.Foo = "Hello"
+            }
+        }
+    }
+}
+--- config
+    location /t {
+        proxy_pass http://unix:$TEST_NGINX_NXSOCK/nginx.sock;
+
+        access_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+            pdk.service.request.enable_buffering()
+            ngx.ctx.buffered_headers = {
+                ["Foo"] = "Hello",
+                ["Bar"] = "World",
+                ["Accept"] = {
+                    "application/json",
+                    "text/html",
+                }
+            }
+
+            ngx.header.h = "oops, i am here"
+        }
+
+        header_filter_by_lua_block {
+            ngx.header.content_length = nil
+        }
+
+        body_filter_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            local headers = pdk.service.response.get_headers()
+            ngx.arg[1] = "type: " .. type(headers) .. "\nfirst: " .. (next(headers) and "exists" or "nil")
+            ngx.arg[2] = true
+        }
+    }
+--- request
+GET /t
+--- response_body chop
+type: table
+first: exists
+--- no_error_log
+[error]
+
+
+
+=== TEST 3: service.response.get_headers() returns service response headers only (unbuffered mode) BROKEN
+--- http_config eval
+qq{
+    $t::Util::HttpConfig
+
+    server {
+        listen unix:$ENV{TEST_NGINX_NXSOCK}/nginx.sock;
+
+        location / {
+            content_by_lua_block {
+                ngx.header.Foo = "Hello"
+                ngx.header.Bar = "World"
+                ngx.header.Accept = {
+                    "application/json",
+                    "text/html",
+                }
+            }
+        }
+    }
+}
+--- config
+    location = /t {
+        proxy_pass http://unix:$TEST_NGINX_NXSOCK/nginx.sock;
+
+        access_by_lua_block {
+            ngx.header.h = "oops, i am here"
+        }
+
+        header_filter_by_lua_block {
+            ngx.header.content_length = nil
+        }
+
+        body_filter_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            local headers = pdk.service.response.get_headers()
+
+            ngx.arg[1] = "Foo: " .. headers.Foo .. "\n" ..
+                         "Bar: " .. headers.Bar .. "\n" ..
+                         "Accept: " .. table.concat(headers.Accept, ", ") .. "\n" ..
+                         "NonUpstreamHeader: " .. (headers.h or "i must not be here") .. "\n" ..
+                         "Buffered: " .. (ngx.ctx.buffered_proxying and "true" or "false")
+
+            ngx.arg[2] = true
+        }
+    }
+--- request
+GET /t
+--- response_body chop
+Foo: Hello
+Bar: World
+Accept: application/json, text/html
+NonUpstreamHeader: i must not be here
+Buffered: false
+--- no_error_log
+[error]
+
+
+
+=== TEST 4: service.response.get_headers() returns service response headers only (unbuffered mode, max_headers) BROKEN
+--- http_config eval
+qq{
+    $t::Util::HttpConfig
+
+    server {
+        listen unix:$ENV{TEST_NGINX_NXSOCK}/nginx.sock;
+
+        location / {
+            content_by_lua_block {
+                ngx.header.Foo = "Hello"
+                ngx.header.Bar = "World"
+                ngx.header.Accept = {
+                    "application/json",
+                    "text/html",
+                }
+            }
+        }
+    }
+}
+--- config
+    location = /t {
+        proxy_pass http://unix:$TEST_NGINX_NXSOCK/nginx.sock;
+
+        access_by_lua_block {
+            ngx.header.h = "oops, i am here"
+        }
+
+        header_filter_by_lua_block {
+            ngx.header.content_length = nil
+        }
+
+        body_filter_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            local headers = pdk.service.response.get_headers(10)
+
+            ngx.arg[1] = "Foo: " .. headers.Foo .. "\n" ..
+                         "Bar: " .. headers.Bar .. "\n" ..
+                         "Accept: " .. table.concat(headers.Accept, ", ") .. "\n" ..
+                         "NonUpstreamHeader: " .. (headers.h or "i must not be here") .. "\n" ..
+                         "Buffered: " .. (ngx.ctx.buffered_proxying and "true" or "false")
+
+            ngx.arg[2] = true
+        }
+    }
+--- request
+GET /t
+--- response_body chop
+Foo: Hello
+Bar: World
+Accept: application/json, text/html
+NonUpstreamHeader: i must not be here
+Buffered: false
+--- no_error_log
+[error]
+
+
+
+=== TEST 5: service.response.get_headers() returns service response headers (buffered mode) CORRECT
+--- http_config eval
+qq{
+    $t::Util::HttpConfig
+
+    server {
+        listen unix:$ENV{TEST_NGINX_NXSOCK}/nginx.sock;
+
+        location / {
+            content_by_lua_block {
+            }
+        }
+    }
+}
+--- config
+    location = /t {
+        proxy_pass http://unix:$TEST_NGINX_NXSOCK/nginx.sock;
+
+        access_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+            pdk.service.request.enable_buffering()
+            ngx.ctx.buffered_headers = {
+                ["Foo"] = "Hello",
+                ["Bar"] = "World",
+                ["Accept"] = {
+                    "application/json",
+                    "text/html",
+                }
+            }
+
+            ngx.header.h = "oops, i am here"
+        }
+
+        header_filter_by_lua_block {
+            ngx.header.content_length = nil
+        }
+
+        body_filter_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            local headers = pdk.service.response.get_headers()
+
+            ngx.arg[1] = "Foo: " .. headers.Foo .. "\n" ..
+                         "Bar: " .. headers.Bar .. "\n" ..
+                         "Accept: " .. table.concat(headers.Accept, ", ") .. "\n" ..
+                         "NonUpstreamHeader: " .. (headers.h or "i must not be here") .. "\n" ..
+                         "Buffered: " .. (ngx.ctx.buffered_proxying and "true" or "false")
+
+            ngx.arg[2] = true
+        }
+    }
+--- request
+GET /t
+--- response_body chop
+Foo: Hello
+Bar: World
+Accept: application/json, text/html
+NonUpstreamHeader: i must not be here
+Buffered: true
+--- no_error_log
+[error]
+
+
+
+=== TEST 6: service.response.get_headers() returns service response headers (buffered mode, max_headers) CORRECT
+--- http_config eval
+qq{
+    $t::Util::HttpConfig
+
+    server {
+        listen unix:$ENV{TEST_NGINX_NXSOCK}/nginx.sock;
+
+        location / {
+            content_by_lua_block {
+            }
+        }
+    }
+}
+--- config
+    location = /t {
+        proxy_pass http://unix:$TEST_NGINX_NXSOCK/nginx.sock;
+
+        access_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+            pdk.service.request.enable_buffering()
+            ngx.ctx.buffered_headers = {
+                ["Foo"] = "Hello",
+                ["Bar"] = "World",
+                ["Accept"] = {
+                    "application/json",
+                    "text/html",
+                }
+            }
+
+            ngx.header.h = "oops, i am here"
+        }
+
+        header_filter_by_lua_block {
+            ngx.header.content_length = nil
+        }
+
+        body_filter_by_lua_block {
+            local PDK = require "kong.pdk"
+            local pdk = PDK.new()
+
+            local headers = pdk.service.response.get_headers(10)
+
+            ngx.arg[1] = "Foo: " .. headers.Foo .. "\n" ..
+                         "Bar: " .. headers.Bar .. "\n" ..
+                         "Accept: " .. table.concat(headers.Accept, ", ") .. "\n" ..
+                         "NonUpstreamHeader: " .. (headers.h or "i must not be here") .. "\n" ..
+                         "Buffered: " .. (ngx.ctx.buffered_proxying and "true" or "false")
+
+            ngx.arg[2] = true
+        }
+    }
+--- request
+GET /t
+--- response_body chop
+Foo: Hello
+Bar: World
+Accept: application/json, text/html
+NonUpstreamHeader: i must not be here
+Buffered: true
+--- no_error_log
+[error]
+
+
+
+=== TEST 7: service.response.get_headers() returns a table
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -49,7 +401,7 @@ type: table
 
 
 
-=== TEST 2: service.response.get_headers() returns service response headers
+=== TEST 8: service.response.get_headers() returns service response headers
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -102,7 +454,7 @@ Accept: application/json, text/html
 
 
 
-=== TEST 3: service.response.get_headers() returns service response headers with case-insensitive metatable
+=== TEST 9: service.response.get_headers() returns service response headers with case-insensitive metatable
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -151,7 +503,7 @@ x_Foo_header: Hello
 
 
 
-=== TEST 4: service.response.get_headers() fetches 100 headers max by default
+=== TEST 10: service.response.get_headers() fetches 100 headers max by default
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -190,20 +542,20 @@ qq{
                 n = n + 1
             end
 
-            ngx.arg[1] = ngx.arg[1] .. "number of headers fetched: " .. n
+            ngx.arg[1] = ngx.arg[1] .. "number of headers fetched <= 100? " .. (n <= 100 and "true" or "false")
             ngx.arg[2] = true
         }
     }
 --- request
 GET /t
 --- response_body chop
-number of headers fetched: 100
+number of headers fetched <= 100? true
 --- no_error_log
 [error]
 
 
 
-=== TEST 5: service.response.get_headers() returns error when truncating
+=== TEST 11: service.response.get_headers() returns error when truncating
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -250,7 +602,7 @@ truncated
 
 
 
-=== TEST 6: service.response.get_headers() fetches max_headers argument
+=== TEST 12: service.response.get_headers() fetches max_headers argument
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -281,7 +633,8 @@ qq{
             local PDK = require "kong.pdk"
             local pdk = PDK.new()
 
-            local headers = pdk.service.response.get_headers(60)
+            local max_headers = 60
+            local headers = pdk.service.response.get_headers(max_headers)
 
             local n = 0
 
@@ -289,20 +642,20 @@ qq{
                 n = n + 1
             end
 
-            ngx.arg[1] = ngx.arg[1] .. "number of headers fetched: " .. n
+            ngx.arg[1] = ngx.arg[1] .. "number of headers fetched <= max_headers? " .. (n <= max_headers and "true" or "false")
             ngx.arg[2] = true
         }
     }
 --- request
 GET /t
 --- response_body chop
-number of headers fetched: 60
+number of headers fetched <= max_headers? true
 --- no_error_log
 [error]
 
 
 
-=== TEST 7: service.response.get_headers() raises error when trying to fetch with max_headers invalid value
+=== TEST 13: service.response.get_headers() raises error when trying to fetch with max_headers invalid value
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -336,13 +689,13 @@ qq{
 --- request
 GET /t
 --- response_body chop
-error: max_headers must be a number
+error: max_headers must be a number or nil
 --- no_error_log
 [error]
 
 
 
-=== TEST 8: service.response.get_headers() raises error when trying to fetch with max_headers < 1
+=== TEST 14: service.response.get_headers() raises error when trying to fetch with max_headers < 1
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -382,7 +735,7 @@ error: max_headers must be >= 1
 
 
 
-=== TEST 9: service.response.get_headers() raises error when trying to fetch with max_headers > 1000
+=== TEST 15: service.response.get_headers() raises error when trying to fetch with max_headers > 1000
 --- http_config eval
 qq{
     $t::Util::HttpConfig
@@ -422,7 +775,7 @@ error: max_headers must be <= 1000
 
 
 
-=== TEST 10: service.response.get_headers() returns only service headers
+=== TEST 16: service.response.get_headers() returns only service headers
 --- http_config eval
 qq{
     $t::Util::HttpConfig
