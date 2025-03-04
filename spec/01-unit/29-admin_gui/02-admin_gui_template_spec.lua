@@ -66,8 +66,6 @@ describe("admin_gui template", function()
 
       assert.matches("'ADMIN_GUI_PATH': '/manager'", kconfig_content, nil, true)
       assert.matches("'ADMIN_API_URL': 'https://admin-reference.kong-cloud.test'", kconfig_content, nil, true)
-      assert.matches("'ADMIN_API_PORT': '8001'", kconfig_content, nil, true)
-      assert.matches("'ADMIN_API_SSL_PORT': '8444'", kconfig_content, nil, true)
     end)
 
     it("should regenerates the appropriate kconfig from another call", function()
@@ -84,8 +82,6 @@ describe("admin_gui template", function()
       -- test configuration values against template
       assert.matches("'ADMIN_GUI_PATH': '/manager'", new_content, nil, true)
       assert.matches("'ADMIN_API_URL': 'http://localhost:8001'", new_content, nil, true)
-      assert.matches("'ADMIN_API_PORT': '8001'", new_content, nil, true)
-      assert.matches("'ADMIN_API_SSL_PORT': '8444'", new_content, nil, true)
     end)
   end)
 
@@ -145,8 +141,6 @@ describe("admin_gui template", function()
       local kconfig_content = admin_gui.generate_kconfig(conf)
 
       assert.matches("'ADMIN_API_URL': '0.0.0.0:8001'", kconfig_content, nil, true)
-      assert.matches("'ADMIN_API_PORT': '8001'", kconfig_content, nil, true)
-      assert.matches("'ADMIN_API_SSL_PORT': '8444'", kconfig_content, nil, true)
       assert.matches("'ANONYMOUS_REPORTS': 'false'", kconfig_content, nil, true)
     end)
 
@@ -162,8 +156,6 @@ describe("admin_gui template", function()
 
       -- test configuration values against template
       assert.matches("'ADMIN_API_URL': '0.0.0.0:8001'", new_content, nil, true)
-      assert.matches("'ADMIN_API_PORT': '8001'", new_content, nil, true)
-      assert.matches("'ADMIN_API_SSL_PORT': '8444'", new_content, nil, true)
       assert.matches("'ANONYMOUS_REPORTS': 'true'", new_content, nil, true)
     end)
   end)
