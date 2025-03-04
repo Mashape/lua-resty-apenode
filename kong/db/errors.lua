@@ -4,6 +4,7 @@ local nkeys = require("table.nkeys")
 local table_isarray = require("table.isarray")
 local uuid = require("kong.tools.uuid")
 local json = require("kong.tools.cjson")
+local kong_table = require "kong.tools.table"
 
 
 local type         = type
@@ -984,7 +985,7 @@ do
         -- same as the one-to-one case: if the field's value is not a table,
         -- we will let any errors related to it be categorized as a field-level
         -- error instead
-        if type(field_value) == "table" then
+        if type(field_value) == "table" and kong_table.is_array(field_value) then
           entity[field_name] = nil
           err_t[field_name] = nil
 
