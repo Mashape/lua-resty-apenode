@@ -17,6 +17,7 @@ local pairs = pairs
 local ipairs = ipairs
 local next = next
 local max = math.max
+local lower = string.lower
 
 
 local ngx           = ngx
@@ -445,6 +446,7 @@ function _M:exec(ctx)
 
   local req_uri = ctx and ctx.request_uri or var.request_uri
   local req_host = get_header("host", ctx)
+  req_host = req_host and lower(req_host) or nil
 
   req_uri = strip_uri_args(req_uri)
 
