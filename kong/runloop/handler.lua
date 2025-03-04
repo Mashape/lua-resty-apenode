@@ -73,9 +73,6 @@ local ROUTER_CACHE = lrucache.new(ROUTER_CACHE_SIZE)
 local ROUTER_CACHE_NEG = lrucache.new(ROUTER_CACHE_SIZE)
 
 
-local DEFAULT_PROXY_HTTP_VERSION = "1.1"
-
-
 local NOOP = function() end
 
 
@@ -110,6 +107,8 @@ local RECONFIGURE_OPTS
 local GLOBAL_QUERY_OPTS = { workspace = ngx.null, show_ws_id = true }
 
 local SERVER_HEADER = meta._SERVER_TOKENS
+local DEFAULT_PROXY_GRPC_VIA_HEADER = "2 " .. SERVER_HEADER
+local DEFAULT_PROXY_HTTP_VIA_HEADER = "1.1 " .. SERVER_HEADER
 
 
 local STREAM_TLS_TERMINATE_SOCK
@@ -1377,13 +1376,9 @@ return {
       var.upstream_x_forwarded_path   = forwarded_path
       var.upstream_x_forwarded_prefix = forwarded_prefix
 
-      do
-        local req_via = get_header(constants.HEADERS.VIA, ctx)
-        local kong_inbound_via = protocol_version and protocol_version .. " " .. SERVER_HEADER
-                                 or SERVER_HEADER
-        var.upstream_via = req_via and req_via .. ", " .. kong_inbound_via
-                           or kong_inbound_via
-      end
+      local req_via = get_header(constants.HEADERS.VIA, ctx)
+      local kong_via = protocol_version and (protocol_version .. " " .. SERVER_HEADER) or SERVER_HEADER
+      var.upstream_via = req_via and (req_via .. ", " .. kong_via) or kong_via
 
       -- At this point, the router and `balancer_setup_stage1` have been
       -- executed; detect requests that need to be redirected from `proxy_pass`
@@ -1575,25 +1570,11 @@ return {
         end
 
         if enabled_headers[headers.VIA] then
-          -- Kong does not support injected directives like 'nginx_location_proxy_http_version',
-          -- so we skip checking them.
-
-          local proxy_http_version
-
           local upstream_scheme = var.upstream_scheme
-          if upstream_scheme == "grpc" or upstream_scheme == "grpcs" then
-            proxy_http_version = "2"
-          end
-          if not proxy_http_version then
-            proxy_http_version = ctx.proxy_http_version or
-                                 kong.configuration.proxy_http_version or
-                                 DEFAULT_PROXY_HTTP_VERSION
-          end
-
-          local kong_outbound_via = proxy_http_version .. " " .. SERVER_HEADER
-          local resp_via = var["upstream_http_" .. headers.VIA]
-          header[headers.VIA] = resp_via and resp_via .. ", " .. kong_outbound_via
-                                or kong_outbound_via
+          local resp_via = var.upstream_http_via
+          local kong_via = (upstream_scheme == "grpc" or upstream_scheme == "grpcs") and
+            DEFAULT_PROXY_GRPC_VIA_HEADER or DEFAULT_PROXY_HTTP_VIA_HEADER
+          header[headers.VIA] = resp_via and (resp_via .. ", " .. kong_via) or kong_via
         end
 
         -- If upstream does not provide the 'Server' header, an 'openresty' header
