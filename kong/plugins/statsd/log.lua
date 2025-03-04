@@ -100,15 +100,18 @@ local SHDICT_METRICS_SEND_THRESHOLD = 60
 
 
 local get_consumer_id = {
-  consumer_id = function(consumer)
+  consumer_id = function(consumer, cred)
     return consumer and consumer.id
   end,
-  custom_id   = function(consumer)
+  custom_id   = function(consumer, cred)
     return consumer and consumer.custom_id
   end,
-  username    = function(consumer)
+  username    = function(consumer, cred)
     return consumer and consumer.username
-  end
+  end,
+  credential = function(consumer, cred)
+    return cred and cred.id
+  end,
 }
 
 local get_service_id = {
@@ -143,7 +146,7 @@ local metrics = {
       return
     end
     local get_consumer_id = get_consumer_id[metric_config.consumer_identifier or conf.consumer_identifier_default]
-    local consumer_id     = get_consumer_id(message.consumer)
+    local consumer_id     = get_consumer_id(message.consumer, message.authenticated_entity)
 
     if consumer_id then
       local stat = string_format("%s.user.uniques", scope_name)
@@ -156,7 +159,7 @@ local metrics = {
       return
     end
     local get_consumer_id = get_consumer_id[metric_config.consumer_identifier or conf.consumer_identifier_default]
-    local consumer_id     = get_consumer_id(message.consumer)
+    local consumer_id     = get_consumer_id(message.consumer, message.authenticated_entity)
 
     if consumer_id then
       local stat = string_format("%s.user.%s.request.count", scope_name, consumer_id)
@@ -179,7 +182,7 @@ local metrics = {
       return
     end
     local get_consumer_id = get_consumer_id[metric_config.consumer_identifier or conf.consumer_identifier_default]
-    local consumer_id     = get_consumer_id(message.consumer)
+    local consumer_id     = get_consumer_id(message.consumer, message.authenticated_entity)
 
     if consumer_id then
       logger:send_statsd(string_format("%s.user.%s.status.%s", scope_name,
@@ -210,7 +213,7 @@ local metrics = {
     end
 
     local get_consumer_id = get_consumer_id[metric_config.consumer_identifier or conf.consumer_identifier_default]
-    local consumer_id     = get_consumer_id(message.consumer)
+    local consumer_id     = get_consumer_id(message.consumer, message.authenticated_entity)
     if not consumer_id then
       return
     end
