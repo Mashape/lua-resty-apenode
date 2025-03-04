@@ -72,6 +72,7 @@ return {
             elements = { type = "string" },
           }},
           { vary_headers = { description = "Relevant headers considered for the cache key. If undefined, none of the headers are taken into consideration.", type = "array",
+            default = { "Accept-Encoding" },
             elements = { type = "string" },
           }},
           { response_headers = {
