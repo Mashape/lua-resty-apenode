@@ -12,6 +12,9 @@ local pairs = pairs
 local tostring = tostring
 local re_gmatch = ngx.re.gmatch
 
+local consts = {
+  JWT_CLAIM_HEADER_PREFIX = "X-Jwt-Claim"
+}
 
 local JwtHandler = {
   VERSION = kong_meta.version,
@@ -150,6 +153,15 @@ local function unauthorized(message, www_auth_content, errors)
   return { status = 401, message = message, headers = { ["WWW-Authenticate"] = www_auth_content }, errors = errors }
 end
 
+-- set header keys from claims
+local function set_headers(conf, claims)
+  local set_header = kong.service.request.set_header
+  for _, v in ipairs(conf.headers_to_set) do
+    if claims[v] then
+      set_header(consts.JWT_CLAIM_HEADER_PREFIX.."-"..v, claims[v])
+    end
+  end
+end
 
 local function do_authentication(conf)
   local token, err = retrieve_tokens(conf)
@@ -205,17 +217,11 @@ local function do_authentication(conf)
     return false, unauthorized("Invalid algorithm", www_authenticate_with_error)
   end
 
-  local is_symmetric_algorithm = algorithm ~= nil and algorithm:sub(1, 2) == "HS" 
-  local jwt_secret_value
+  local jwt_secret_value = algorithm ~= nil and algorithm:sub(1, 2) == "HS" and
+                           jwt_secret.secret or jwt_secret.rsa_public_key
 
-  if is_symmetric_algorithm and conf.secret_is_base64 then
-    jwt_secret_value = jwt:base64_decode(jwt_secret.secret)
-  elseif is_symmetric_algorithm then
-    jwt_secret_value = jwt_secret.secret
-  else
-    -- rsa_public_key is either nil or a valid plain text pem file, it can't be base64 decoded.
-    -- see #13710
-    jwt_secret_value = jwt_secret.rsa_public_key
+  if conf.secret_is_base64 then
+    jwt_secret_value = jwt:base64_decode(jwt_secret_value)
   end
 
   if not jwt_secret_value then
@@ -260,6 +266,8 @@ local function do_authentication(conf)
 
   set_consumer(consumer, jwt_secret, token)
 
+  set_headers(conf, claims)
+
   return true
 end
 
@@ -271,12 +279,6 @@ local function set_anonymous_consumer(anonymous)
                                         anonymous, true)
   if err then
     return error(err)
-  end
-
-  if not consumer then
-    local err_msg = "anonymous consumer " .. anonymous .. " is configured but doesn't exist"
-    kong.log.err(err_msg)
-    return kong.response.error(500, err_msg)
   end
 
   set_consumer(consumer)
