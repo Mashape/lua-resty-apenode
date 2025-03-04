@@ -38,6 +38,9 @@ local fmt = string.format
 --- update_secret() may be called more than once per test run for a given secret
 ---@field update_secret fun(self: vault_test_harness, secret: string, value: string, opts?: table)
 ---
+--- delete_secret() may be called more than once per test run for a given secret
+---@field delete_secret fun(self: vault_test_harness, secret: string)
+---
 --- setup() is called before kong is started and before any DB entities
 --- have been created and is best used for things like validating backend
 --- credentials and establishing a connection to a backend
@@ -76,6 +79,10 @@ local VAULTS = {
 
     update_secret = function(_, secret, value, opts)
       return test_vault.client.put(secret, value, opts)
+    end,
+
+    delete_secret = function(_, secret)
+      return test_vault.client.delete(secret)
     end,
 
     fixtures = function()
@@ -157,8 +164,8 @@ describe("vault ttl and rotation (#" .. strategy .. ") #" .. vault.name, functio
     assert(bp.plugins:insert({
       name = "dummy",
       config = {
-        resp_header_value = fmt("{vault://%s/%s?ttl=%s}",
-                                vault.prefix, secret, 10),
+        resp_header_value = fmt("{vault://%s/%s?ttl=%s&resurrect_ttl=0&neg_ttl=%s}",
+                                vault.prefix, secret, 10, 10),
       },
       route = { id = route.id },
     }))
@@ -186,6 +193,65 @@ describe("vault ttl and rotation (#" .. strategy .. ") #" .. vault.name, functio
     helpers.unsetenv("KONG_LUA_PATH_OVERRIDE")
   end)
 
+
+  it("missing secrets should be cached for neg_ttl long (backend: #" .. vault.name .. ")", function()
+    local function check_plugin_secret_any(expect, ttl, leeway)
+      leeway = leeway or 0.25 -- 25%
+
+      local timeout = ttl + (ttl * leeway)
+
+      assert
+        .with_timeout(timeout)
+        .with_step(0.5)
+        .eventually(function()
+          local res = http_get("/")
+          local value = res.headers[DUMMY_HEADER]
+
+          if value == expect then
+            return true
+          end
+
+          return nil, { expected = expect, got = value }
+        end)
+        .is_truthy("expected plugin secret to be updated to '" .. tostring(expect) .. "' "
+                .. "' within " .. tostring(timeout) .. "seconds")
+    end
+
+    local function check_plugin_secret_all(expect, ttl, leeway)
+      leeway = leeway or 0.25 -- 25%
+
+      local timeout = ttl + (ttl * leeway)
+
+      -- The secret value is supposed to be not refreshed
+      -- after several rotations
+      assert.has_error(function()
+        assert
+         .with_timeout(timeout)
+         .with_step(0.5)
+         .eventually(function()
+            local res = http_get("/")
+            local value = res.headers[DUMMY_HEADER]
+
+            if value == expect then
+              return true
+            end
+
+            return false
+         end)
+         .is_falsy("expected plugin secret not to be updated to '" .. tostring(expect) .. "' "
+                 .. "' within " .. tostring(timeout) .. "seconds")
+        end)
+    end
+
+    vault:delete_secret(secret)
+    check_plugin_secret_any(nil, 1)
+
+    vault:update_secret(secret, "new", { ttl = 5 })
+    -- The negative cache is supposed to be not refreshed during neg_ttl (10s)
+    check_plugin_secret_all(nil, 9, 0)
+
+    check_plugin_secret_any("new", 5)
+  end)
 
   it("updates plugin config references (backend: #" .. vault.name .. ")", function()
     local function check_plugin_secret(expect, ttl, leeway)

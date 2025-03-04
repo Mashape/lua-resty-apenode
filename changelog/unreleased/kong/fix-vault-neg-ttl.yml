@@ -1,0 +1,3 @@
+message: "**vault**: Fixed an issue where neg_ttl config doesn't work"
+type: bugfix
+scope: Core
