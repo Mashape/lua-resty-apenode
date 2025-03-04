@@ -14,7 +14,6 @@ local pcall = pcall
 local subsystem = ngx.config.subsystem
 local pairs = pairs
 local ipairs = ipairs
-local format = string.format
 local fetch_table = tablepool.fetch
 local release_table = tablepool.release
 local uuid = require("kong.tools.uuid").uuid
@@ -83,7 +82,7 @@ local PluginsIterator = {}
 -- @tparam string|nil consumer_id The consumer identifier. If `nil`, an empty string is used.
 -- @treturn string The compound key, in the format `route_id:service_id:consumer_id`.
 local function build_compound_key(route_id, service_id, consumer_id)
-  return format("%s:%s:%s", route_id or "", service_id or "", consumer_id or "")
+  return (route_id or "") .. ":" .. (service_id or "") .. ":" .. (consumer_id or "")
 end
 
 
@@ -119,7 +118,8 @@ end
 
 
 local function get_loaded_plugins()
-  return assert(kong.db.plugins:get_handlers())
+  local loaded_plugins = assert(kong.db.plugins:get_handlers())
+  return loaded_plugins
 end
 
 
@@ -213,53 +213,52 @@ end
 -- @tparam string|nil consumer_id The consumer identifier.
 -- @return any|nil The configuration corresponding to the best matching combination, or 'nil' if no configuration is found.
 local function lookup_cfg(combos, route_id, service_id, consumer_id)
-  -- Use the build_compound_key function to create an index for the 'combos' table
   if route_id and service_id and consumer_id then
-    local key = build_compound_key(route_id, service_id, consumer_id)
-    if combos[key] then
-      return combos[key]
+    local cfg = combos[route_id .. ":" .. service_id .. ":" .. consumer_id]
+    if cfg then
+      return cfg
     end
   end
 
   if route_id and consumer_id then
-    local key = build_compound_key(route_id, nil, consumer_id)
-    if combos[key] then
-      return combos[key]
+    local cfg = combos[route_id .. "::" .. consumer_id]
+    if cfg then
+      return cfg
     end
   end
 
   if service_id and consumer_id then
-    local key = build_compound_key(nil, service_id, consumer_id)
-    if combos[key] then
-      return combos[key]
+    local cfg = combos[":" .. service_id .. ":" .. consumer_id]
+    if cfg then
+      return cfg
     end
   end
 
   if route_id and service_id then
-    local key = build_compound_key(route_id, service_id, nil)
-    if combos[key] then
-      return combos[key]
+    local cfg = combos[route_id .. ":" .. service_id .. ":"]
+    if cfg then
+      return cfg
     end
   end
 
   if consumer_id then
-    local key = build_compound_key(nil, nil, consumer_id)
-    if combos[key] then
-      return combos[key]
+    local cfg = combos["::" .. consumer_id]
+    if cfg then
+      return cfg
     end
   end
 
   if route_id then
-    local key = build_compound_key(route_id, nil, nil)
-    if combos[key] then
-      return combos[key]
+    local cfg = combos[route_id .. "::"]
+    if cfg then
+      return cfg
     end
   end
 
   if service_id then
-    local key = build_compound_key(nil, service_id, nil)
-    if combos[key] then
-      return combos[key]
+    local cfg = combos[":" .. service_id .. ":"]
+    if cfg then
+      return cfg
     end
   end
 
@@ -287,7 +286,8 @@ local function load_configuration_through_combos(ctx, combos, plugin)
   local consumer_id = (not handler.no_consumer and ctx.authenticated_consumer) and ctx.authenticated_consumer.id or nil
 
   -- Call the lookup_cfg function to get the best matching plugin configuration
-  return lookup_cfg(combos, route_id, service_id, consumer_id)
+  local cfg = lookup_cfg(combos, route_id, service_id, consumer_id)
+  return cfg
 end
 
 
@@ -301,7 +301,7 @@ end
 
 
 local function get_next_init_worker(plugins, i)
-  local i = i + 1
+  i = i + 1
   local plugin = plugins[i]
   if not plugin then
     return nil
@@ -365,7 +365,8 @@ local function get_collected_iterator(self, phase, ctx)
     return get_next_global_or_collected_plugin, plugins
   end
 
-  return get_global_iterator(self, phase)
+  local iterator, invariant_state = get_global_iterator(self, phase)
+  return iterator, invariant_state
 end
 
 
