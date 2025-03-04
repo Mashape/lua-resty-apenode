@@ -97,8 +97,7 @@ local function cacheable_request(conf, cc)
   end
 
   -- check for explicit disallow directives
-  -- TODO note that no-cache isnt quite accurate here
-  if conf.cache_control and (cc["no-store"] or cc["no-cache"] or
+  if conf.cache_control and (cc["no-store"] or
      ngx.var.authorization) then
     return false
   end
@@ -260,7 +259,15 @@ function ProxyCacheHandler:access(conf)
     return
   end
 
+  local ctx = kong.ctx.plugin
+
   set_header(conf, "X-Cache-Key", cache_key)
+  if conf.cache_control then
+    if cc["no-cache"] then
+      return signal_cache_req(ctx, conf, cache_key, "Bypass")
+    end
+  end
+
 
   -- try to fetch the cached object from the computed cache key
   local strategy = require(STRATEGY_PATH)({
@@ -268,7 +275,6 @@ function ProxyCacheHandler:access(conf)
     strategy_opts = conf[conf.strategy],
   })
 
-  local ctx = kong.ctx.plugin
   local res, err = strategy:fetch(cache_key)
   if err == "request object not in cache" then -- TODO make this a utils enum err
 
