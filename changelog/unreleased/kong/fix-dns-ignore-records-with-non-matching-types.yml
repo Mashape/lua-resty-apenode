@@ -1,0 +1,3 @@
+message: "**DNS Client**: Fixed an issue where the Kong DNS client stored records with non-matching domain and type when parsing answers. It now ignores records when the RR type differs from that of the query when parsing answers and disables the `ADDITIONAL SECTION` in DNS responses."
+type: bugfix
+scope: Core
