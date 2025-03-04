@@ -380,7 +380,7 @@ jobs:
         echo "rpm_platform=$rpm_platform" >> $GITHUB_OUTPUT
 
     - name: Build Docker Image
-      uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+      uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v5
       with:
         file: build/dockerfiles/${{ matrix.package }}.Dockerfile
         context: .
