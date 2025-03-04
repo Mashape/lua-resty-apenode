@@ -6,15 +6,19 @@ import (
 	"log"
 	"net"
 	"time"
+	"strings"
 
-	pb "target/targetservice"
+	pb "grpc/targetservice"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
-	port = ":15010"
+	port = "localhost:15010"
 )
 
 type server struct {
@@ -51,6 +55,20 @@ func (s *server) GrowTail(ctx context.Context, in *pb.Body) (*pb.Body, error) {
 
 func (s *server) Echo(ctx context.Context, in *pb.EchoMsg) (*pb.EchoMsg, error) {
 	return in, nil
+}
+
+func (s *server) EchoHeaders(ctx context.Context, in *pb.Void) (*pb.Headers, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.DataLoss, "UnaryEcho: failed to get metadata")
+	}
+	headers := &pb.Headers{}
+	var headersMap = make(map[string]string, len(md))
+	for k, v := range md {
+		headersMap[k] = strings.Join(v, ", ")
+	}
+	headers.Headers = headersMap
+	return headers, nil
 }
 
 func main() {
