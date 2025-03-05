@@ -7,10 +7,17 @@ jobs:
     if: "${{ contains(github.event.*.labels.*.name, 'schema-change-noteworthy') }}"
     runs-on: ubuntu-latest
     steps:
+    - name: PR Created Time
+      id: get-pr-created-time
+      run: |
+        PR_CREATED_AT=$(jq -r '.pull_request.created_at' $GITHUB_EVENT_PATH)
+        echo "pr_created_at=$PR_CREATED_AT" >> "$GITHUB_OUTPUT"
     - name: Schema change label found
       uses: Kong/action-slack-notify@bd750854aaf93c5c6f69799bf813c40e7786368a # v2_node20
       continue-on-error: true
       env:
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_SCHEMA_CHANGE }}
-        SLACK_MESSAGE: ${{ github.event.pull_request.title }}
+        SLACK_MESSAGE: |
+          ${{ github.event.pull_request.title }}
+          PR Created at: ${{ env.pr_created_at }}
         SLACK_FOOTER: "<${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}>"
