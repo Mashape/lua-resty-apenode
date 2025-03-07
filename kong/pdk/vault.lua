@@ -948,9 +948,9 @@ local function new(self)
     local value, err = get(reference, true)
     if err then
       self.log.warn("error updating secret reference ", reference, ": ", err)
+    else
+      record[field] = value or ""
     end
-
-    record[field] = value or ""
   end
 
 
@@ -1002,7 +1002,7 @@ local function new(self)
   -- are specified in a `$refs` field.
   --
   -- If a reference cannot be fetched from the cache, the corresponding field is
-  -- set to nil and an warning is logged.
+  -- not changed and an warning is logged.
   --
   -- @local
   -- @function update

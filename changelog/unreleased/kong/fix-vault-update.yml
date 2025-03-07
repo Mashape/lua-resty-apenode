@@ -1,0 +1,3 @@
+message: "**vault**: Fixed an issue where `kong.vault.update()` changed the secret to an empty string temporarily after changed vault config"
+type: bugfix
+scope: Core

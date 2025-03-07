@@ -303,7 +303,7 @@ describe("Vault PDK", function()
   end)
 
   describe("update function", function()
-    it("sets values to empty string on failure", function()
+    it("not change values on failure", function()
       finally(function()
         helpers.unsetenv("CREDENTIALS")
       end)
@@ -434,11 +434,11 @@ describe("Vault PDK", function()
 
       for _, cfg in ipairs({ config, config.sub }) do
         assert.equal("jane", cfg.str_found)
-        assert.equal("", cfg.str_not_found)
-        assert.equal("", cfg.str_not_found_2)
+        assert.equal("not found", cfg.str_not_found)
+        assert.equal("not found", cfg.str_not_found_2)
         assert.same({ "found", "jane", "qwerty", "jane", "found" }, cfg.arr_found)
-        assert.same({ "found", "jane", "", "jane", "found" }, cfg.arr_hole)
-        assert.same({ "found", "", "", "", "found" }, cfg.arr_not_found)
+        assert.same({ "found", "jane", "not found", "jane", "found" }, cfg.arr_hole)
+        assert.same({ "found", "not found", "not found", "not found", "found" }, cfg.arr_not_found)
         assert.same({
           nil,
           "found",
@@ -450,9 +450,9 @@ describe("Vault PDK", function()
         assert.same({
           nil,
           "found",
-          a = "",
-          b = "",
-          c = "",
+          a = "found",
+          b = "found",
+          c = "found",
           d = "found",
         }, cfg.map_not_found)
       end
