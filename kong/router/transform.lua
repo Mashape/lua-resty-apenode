@@ -331,6 +331,15 @@ local function path_val_transform(op, p)
 end
 
 
+-- Generates an ATC router expression for traditional compat router flavor
+-- match priority for http is as follows:
+-- (sni if net.protocol == https) -> net.src.ip -> net.src.port
+--   -> net.dst.ip -> net.dst.port -> http.path -> http.headers
+--   -> http.host -> http.method
+--
+-- match priority for stream is as follows:
+-- (sni if net.protocol == tls) -> net.src.ip -> net.src.port
+--   -> net.dst.ip -> net.dst.port
 local function get_expression(route)
   -- we prefer the field 'expression', reject others
   if not is_null(route.expression) then
@@ -377,9 +386,37 @@ local function get_expression(route)
 
   -- http expression, protocol = http/https/grpc/grpcs
 
-  gen = gen_for_field("http.method", OP_EQUAL, route.methods)
+  gen = gen_for_field("http.path", path_op_transform, route.paths, path_val_transform)
   if gen then
     expression_append(expr_buf, LOGICAL_AND, gen)
+  end
+
+  local headers = route.headers
+  if not is_empty_field(headers) then
+    headers_buf:reset()
+
+    for h, v in pairs(headers) do
+      single_header_buf:reset():put("(")
+
+      for i, value in ipairs(v) do
+        local name = "any(lower(http.headers." .. replace_dashes_lower(h) .. "))"
+        local op = OP_EQUAL
+
+        -- value starts with "~*"
+        if byte(value, 1) == TILDE and byte(value, 2) == ASTERISK then
+          value = value:sub(3)
+          op = OP_REGEX
+        end
+
+        expression_append(single_header_buf, LOGICAL_OR,
+                          name .. " " .. op .. " " .. escape_str(value:lower()), i)
+      end
+
+      expression_append(headers_buf, LOGICAL_AND,
+                        single_header_buf:put(")"):get())
+    end
+
+    expression_append(expr_buf, LOGICAL_AND, headers_buf:get())
   end
 
   local hosts = route.hosts
@@ -412,37 +449,9 @@ local function get_expression(route)
     expression_append(expr_buf, LOGICAL_AND, hosts_buf:put(")"):get())
   end
 
-  gen = gen_for_field("http.path", path_op_transform, route.paths, path_val_transform)
+  gen = gen_for_field("http.method", OP_EQUAL, route.methods)
   if gen then
     expression_append(expr_buf, LOGICAL_AND, gen)
-  end
-
-  local headers = route.headers
-  if not is_empty_field(headers) then
-    headers_buf:reset()
-
-    for h, v in pairs(headers) do
-      single_header_buf:reset():put("(")
-
-      for i, value in ipairs(v) do
-        local name = "any(lower(http.headers." .. replace_dashes_lower(h) .. "))"
-        local op = OP_EQUAL
-
-        -- value starts with "~*"
-        if byte(value, 1) == TILDE and byte(value, 2) == ASTERISK then
-          value = value:sub(3)
-          op = OP_REGEX
-        end
-
-        expression_append(single_header_buf, LOGICAL_OR,
-                          name .. " " .. op .. " " .. escape_str(value:lower()), i)
-      end
-
-      expression_append(headers_buf, LOGICAL_AND,
-                        single_header_buf:put(")"):get())
-    end
-
-    expression_append(expr_buf, LOGICAL_AND, headers_buf:get())
   end
 
   local str = expr_buf:get()
