@@ -1,0 +1,3 @@
+message: "Fixed an issue where the Host header was case-sensitive on route for matching, which should be case-insensitive as per RFC 3986."
+type: breaking_change
+scope: Core

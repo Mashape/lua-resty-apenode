@@ -15,6 +15,7 @@ local ipairs = ipairs
 local tb_insert = table.insert
 local fmt = string.format
 local byte = string.byte
+local lower = string.lower
 local bor, band, lshift, rshift = bit.bor, bit.band, bit.lshift, bit.rshift
 
 
@@ -401,7 +402,7 @@ local function get_expression(route)
         host = host:sub(1, -2)
       end
 
-      local exp = "http.host ".. op .. [[ r#"]] .. host .. [["#]]
+      local exp = "http.host ".. op .. [[ r#"]] .. lower(host) .. [["#]]
       if port then
         exp = "(" .. exp .. LOGICAL_AND ..
               "net.dst.port ".. OP_EQUAL .. " " .. port .. ")"
