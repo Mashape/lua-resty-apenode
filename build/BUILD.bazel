@@ -312,6 +312,16 @@ kong_template_file(
 )
 
 kong_template_file(
+    name = "direnv",
+    output = "%s-venv.envrc" % KONG_VAR["BUILD_NAME"],
+    substitutions = {
+        "{{build_name}}": KONG_VAR["BUILD_NAME"],
+        "{{workspace_path}}": KONG_VAR["WORKSPACE_PATH"],
+    },
+    template = "//build:templates/direnv",
+)
+
+kong_template_file(
     name = "venv-commons",
     is_executable = True,
     output = "%s-venv/lib/venv-commons" % KONG_VAR["BUILD_NAME"],
@@ -327,6 +337,7 @@ kong_rules_group(
         ":kong",
         ":venv.sh",
         ":venv.fish",
+        ":direnv",
         ":venv-commons",
     ],
     visibility = ["//visibility:public"],
