@@ -44,7 +44,7 @@ jobs:
         result-encoding: string
 
     - name: Send Slack Message
-      uses: slackapi/slack-github-action@70cd7be8e40a46e8b0eced40b0de447bdb42f68e # v1.26.0
+      uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
       with:
         payload: ${{ steps.generate-payload.outputs.result }}
       env:
