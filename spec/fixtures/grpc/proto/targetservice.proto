@@ -51,6 +51,12 @@ service Bouncer {
       body: "*"
     };
   }
+
+  rpc EchoHeaders(Void)  returns (Headers) {
+    option (google.api.http) = {
+      get: "/v1/echoheaders"
+    };
+  }
 }
 
 
@@ -93,3 +99,9 @@ message EchoMsg {
   repeated string array = 1;
   string nullable = 2;
 }
+
+message Headers {
+  map<string, string> headers = 1;
+}
+
+message Void {}

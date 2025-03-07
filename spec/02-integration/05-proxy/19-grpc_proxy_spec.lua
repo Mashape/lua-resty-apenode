@@ -30,6 +30,8 @@ for _, strategy in helpers.each_strategy() do
     reload_router(flavor)
 
     lazy_setup(function()
+      assert(helpers.start_grpc_target())
+
       local bp = helpers.get_db_utils(strategy, {
         "routes",
         "services",
@@ -47,12 +49,16 @@ for _, strategy in helpers.each_strategy() do
 
       local mock_grpc_service = assert(bp.services:insert {
         name = "mock_grpc_service",
-        url = "grpc://localhost:8765",
+        protocol = "grpc",
+        host = "127.0.0.1",
+        port = helpers.get_grpc_target_port(),
       })
 
       local mock_grpc_service_retry = assert(bp.services:insert {
         name = "mock_grpc_service_retry",
-        url = "grpc://grpc_retry",
+        protocol = "grpc",
+        host = "127.0.0.1",
+        port = helpers.get_grpc_target_port(),
       })
 
       local upstream_retry = assert(bp.upstreams:insert {
@@ -111,30 +117,10 @@ for _, strategy in helpers.each_strategy() do
         },
       })
 
-      local fixtures = {
-        http_mock = {}
-      }
-
-      fixtures.http_mock.my_server_block = [[
-        server {
-          server_name myserver;
-          listen 8765;
-          http2 on;
-
-          location ~ / {
-            content_by_lua_block {
-              ngx.header.content_type = "application/grpc"
-              ngx.header.received_host = ngx.req.get_headers()["Host"]
-            }
-          }
-        }
-      ]]
-
       assert(helpers.start_kong({
         router_flavor = flavor,
         database = strategy,
-        nginx_conf       = "spec/fixtures/custom_nginx.template",
-      }, nil, nil, fixtures))
+      }))
 
       proxy_client_grpc = helpers.proxy_client_grpc()
       proxy_client_grpcs = helpers.proxy_client_grpcs()
@@ -150,6 +136,7 @@ for _, strategy in helpers.each_strategy() do
 
     lazy_teardown(function()
       helpers.stop_kong()
+      helpers.stop_grpc_target()
     end)
 
     it("proxies grpc", function()
@@ -228,32 +215,33 @@ for _, strategy in helpers.each_strategy() do
 
     it("proxies :authority header if `preserve_host` is set", function()
       local _, resp = proxy_client_grpc({
-        service = "hello.HelloService.SayHello",
+        service = "targetservice.Bouncer.EchoHeaders",
         body = {
-          greeting = "world!"
         },
         opts = {
+          ["-proto"] = "./spec/fixtures/grpc/proto/targetservice.proto",
+          ["-import-path"] = "./spec/fixtures/grpc/proto",
           ["-authority"] = "grpc_authority_1.example",
-          ["-v"] = true,
         }
       })
-
-      assert.matches("received%-host: grpc_authority_1.example", resp)
+      local headers = cjson.decode(resp).headers
+      assert.matches("grpc_authority_1.example", headers[":authority"])
     end)
 
     it("sets default :authority header if `preserve_host` isn't set", function()
       local _, resp = proxy_client_grpc({
-        service = "hello.HelloService.SayHello",
+        service = "targetservice.Bouncer.EchoHeaders",
         body = {
-          greeting = "world!"
         },
         opts = {
+          ["-proto"] = "./spec/fixtures/grpc/proto/targetservice.proto",
+          ["-import-path"] = "./spec/fixtures/grpc/proto",
           ["-authority"] = "grpc_authority_2.example",
-          ["-v"] = true,
         }
       })
 
-      assert.matches("received%-host: localhost:8765", resp)
+      local headers = cjson.decode(resp).headers
+      assert.matches("127.0.0.1:15010", headers[":authority"])
     end)
 
     it("proxies :authority header on balancer retry", function()

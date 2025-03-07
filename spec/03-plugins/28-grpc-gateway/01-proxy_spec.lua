@@ -44,7 +44,7 @@ for _, strategy in helpers.each_strategy() do
         route = route1,
         name = "grpc-gateway",
         config = {
-          proto = "./spec/fixtures/grpc/targetservice.proto",
+          proto = "./spec/fixtures/grpc/proto/targetservice.proto",
         },
       })
 
@@ -64,7 +64,7 @@ for _, strategy in helpers.each_strategy() do
         route = mock_grpc_route,
         name = "grpc-gateway",
         config = {
-          proto = "./spec/fixtures/grpc/targetservice.proto",
+          proto = "./spec/fixtures/grpc/proto/targetservice.proto",
         },
       })
 
