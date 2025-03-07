@@ -7,7 +7,7 @@ for _, strategy in helpers.each_strategy() do
   local dns_hostsfile
   local reports_server
 
-  describe("anonymous reports for Wasm #" .. strategy, function()
+  describe("anonymous reports for #wasm #" .. strategy, function()
     local reports_send_ping = function(port)
       ngx.sleep(0.2) -- hand over the CPU so other threads can do work (processing the sent data)
       local admin_client = helpers.admin_client()

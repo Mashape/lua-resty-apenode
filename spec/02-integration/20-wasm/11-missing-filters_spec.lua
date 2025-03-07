@@ -5,7 +5,7 @@ local FILTER_PATH = assert(helpers.test_conf.wasm_filters_path)
 -- no cassandra support
 for _, strategy in helpers.each_strategy({ "postgres", "off" }) do
 
-describe("missing filters in the config [#" .. strategy .. "]", function()
+describe("#wasm missing filters in the config [#" .. strategy .. "]", function()
   local bp
   local service, route
 

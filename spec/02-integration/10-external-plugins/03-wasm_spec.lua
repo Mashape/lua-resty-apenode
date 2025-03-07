@@ -2,7 +2,7 @@ local helpers = require "spec.helpers"
 
 for _, strategy in helpers.each_strategy() do
 
-describe("external plugins and wasm #" .. strategy, function()
+describe("external plugins and #wasm #" .. strategy, function()
   describe("wasm enabled in conjunction with unused pluginservers", function()
     it("does not prevent kong from starting", function()
       require("kong.runloop.wasm").enable({

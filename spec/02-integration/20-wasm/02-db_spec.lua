@@ -7,7 +7,7 @@ local FILTER_PATH = assert(helpers.test_conf.wasm_filters_path)
 -- no cassandra support
 for _, strategy in helpers.each_strategy({ "postgres" }) do
 
-describe("wasm DB entities [#" .. strategy .. "]", function()
+describe("#wasm DB entities [#" .. strategy .. "]", function()
   local db
 
   local function reset_db()

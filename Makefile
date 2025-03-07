@@ -122,7 +122,7 @@ install-dev-rocks: build-venv
 	  fi \
 	done;
 
-dev: install-rust-toolchain build-venv install-dev-rocks bin/grpcurl bin/h2client wasm-test-filters
+dev: install-rust-toolchain build-venv install-dev-rocks bin/grpcurl bin/h2client
 
 build-release: check-bazel
 	$(BAZEL) clean --expunge

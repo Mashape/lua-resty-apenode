@@ -25,12 +25,6 @@ jobs:
     - name: Checkout Kong source code
       uses: actions/checkout@v4
 
-    # these aren't necessarily used by all tests, but building them here will
-    # ensures that we have a warm cache when other tests _do_ need to build the
-    # filters
-    - name: Build WASM Test Filters
-      uses: ./.github/actions/build-wasm-test-filters
-
     - name: Generate cache key
       id: cache-key
       uses: ./.github/actions/build-cache-key

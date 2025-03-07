@@ -1,4 +1,9 @@
 return {
+  _all = {
+    ["exclude-tags"] = {
+      "wasm",
+    },
+  },
   default = {
     lpath = "./?.lua;./?/init.lua;",
     -- make setup() and teardown() behave like their lazy_ variants

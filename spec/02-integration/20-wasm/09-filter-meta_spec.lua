@@ -30,7 +30,7 @@ end
 
 for _, strategy in helpers.each_strategy({ "postgres", "off" }) do
 
-describe("filter metadata [#" .. strategy .. "]", function()
+describe("#wasm filter metadata [#" .. strategy .. "]", function()
   local filter_path
   local admin
   local proxy
@@ -417,7 +417,7 @@ describe("filter metadata [#" .. strategy .. "]", function()
 
 end)
 
-describe("filter metadata [#" .. strategy .. "] startup errors -", function()
+describe("#wasm filter metadata [#" .. strategy .. "] startup errors -", function()
   local filter_path
   local filter_name = "test-filter"
   local meta_path
@@ -517,7 +517,7 @@ end)
 end -- each strategy
 
 
-describe("filter metadata [#off] yaml config", function()
+describe("#wasm filter metadata [#off] yaml config", function()
   local tmp_dir
   local kong_yaml
   local client

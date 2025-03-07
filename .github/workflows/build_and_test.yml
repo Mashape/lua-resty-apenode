@@ -247,9 +247,6 @@ jobs:
         path: ${{ env.BUILD_ROOT }}
         key: ${{ needs.build.outputs.cache-key }}
 
-    - name: Build WASM Test Filters
-      uses: ./.github/actions/build-wasm-test-filters
-
     - name: Add gRPC test host names
       run: |
           echo "127.0.0.1 grpcs_1.test" | sudo tee -a /etc/hosts
