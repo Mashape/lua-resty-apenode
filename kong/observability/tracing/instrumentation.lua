@@ -176,40 +176,56 @@ _M.plugin_header_filter = plugin_callback("header_filter")
 -- because it's the most common usage of lua-resty-http library.
 function _M.http_client()
   local http = require "resty.http"
-  local request_uri = http.request_uri
+  local luasocket_http = require "resty.luasocket.http"
 
-  local function wrap(self, uri, params)
-    local method = params and params.method or "GET"
-    local attributes = new_tab(0, 5)
-    -- passing full URI to http.url attribute
-    attributes["http.url"] = uri
-    attributes["http.method"] = method
-    attributes["http.flavor"] = params and params.version or "1.1"
-    attributes["http.user_agent"] = params and params.headers and params.headers["User-Agent"]
-        or http._USER_AGENT
+  local function get_wrapper(f)
+    return function(self, arg1, arg2)
+      local params = arg2 or arg1
+      local uri = arg2 and arg1 or params.path
 
-    local http_proxy = self.proxy_opts and (self.proxy_opts.https_proxy or self.proxy_opts.http_proxy)
-    if http_proxy then
-      attributes["http.proxy"] = http_proxy
+      local method = params and params.method or "GET"
+      local attributes = new_tab(0, 5)
+      -- passing full URI to http.url attribute
+      attributes["http.url"] = uri
+      attributes["http.method"] = method
+      attributes["http.flavor"] = params and params.version or "1.1"
+      attributes["http.user_agent"] = params and params.headers and params.headers["User-Agent"]
+          or http._USER_AGENT
+
+      local http_proxy = self.proxy_opts and (self.proxy_opts.https_proxy or self.proxy_opts.http_proxy)
+      if http_proxy then
+        attributes["http.proxy"] = http_proxy
+      end
+
+      local span = tracer.start_span("kong.internal.request", {
+        span_kind = 3, -- client
+        attributes = attributes,
+      })
+
+      if not span then
+        if err then
+          log(ngx_ERR, "failed to start span: ", err)
+        end
+        return f(self, arg1, arg2)
+      end
+
+      tracer.set_active_span(span)
+
+      local res, err = f(self, arg1, arg2)
+      if res then
+        attributes["http.status_code"] = res.status -- number
+      else
+        span:record_error(err)
+      end
+      span:finish()
+      return res, err
     end
-
-    local span = tracer.start_span("kong.internal.request", {
-      span_kind = 3, -- client
-      attributes = attributes,
-    })
-
-    local res, err = request_uri(self, uri, params)
-    if res then
-      attributes["http.status_code"] = res.status -- number
-    else
-      span:record_error(err)
-    end
-    span:finish()
-
-    return res, err
   end
 
-  http.request_uri = wrap
+  luasocket_http.request_uri = get_wrapper(request_uri)
+  luasocket_http.request = get_wrapper(request)
+  http.request_uri = get_wrapper(request_uri)
+  http.request = get_wrapper(request)
 end
 
 --- Register available_types
