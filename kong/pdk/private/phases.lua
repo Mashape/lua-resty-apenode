@@ -102,7 +102,7 @@ local function check_not_phase(rejected_phases)
 
   local current_phase = ngx.ctx.KONG_PHASE
   if not current_phase then
-    error("no phase in ngx.ctx.KONG_PHASE")
+    error("no phase in ngx.ctx.KONG_PHASE", 3)
   end
 
   if band(current_phase, rejected_phases) == 0 then
@@ -115,7 +115,7 @@ local function check_not_phase(rejected_phases)
   error(fmt("function cannot be called in %s phase (can be called in any " ..
             "phases except: %s)",
             current_phase_name,
-            table.concat(rejected_phases_names, ", ")))
+            table.concat(rejected_phases_names, ", ")), 3)
 end
 
 
