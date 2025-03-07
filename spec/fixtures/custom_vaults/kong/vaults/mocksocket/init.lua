@@ -1,5 +1,5 @@
 local env = require "kong.vaults.env"
-local http = require "resty.luasocket.http"
+local http = require "resty.http"
 
 
 local assert = assert
