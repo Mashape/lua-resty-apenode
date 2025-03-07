@@ -98,7 +98,7 @@ for _, strategy in helpers.all_strategies() do
           test_pem_key = cjson.decode(p_key_body)
         end)
 
-        it("create pem key without set", function()
+        it("create jwk key without set", function()
           local j_key = helpers.admin_client():post("/keys", {
             headers = HEADERS,
             body = {
@@ -109,6 +109,42 @@ for _, strategy in helpers.all_strategies() do
           })
           local key_body = assert.res_status(201, j_key)
           test_jwk_key = cjson.decode(key_body)
+        end)
+
+        it("create pem key with x5t", function()
+          local p_key = helpers.admin_client():post("/keys", {
+            headers = HEADERS,
+            body = {
+              name = "pemkey with x5t",
+              set = { id = test_key_set.id },
+              pem = {
+                public_key = pem_pub,
+                private_key = pem_priv,
+              },
+              kid = "test_pem_with_x5t",
+              x5t = "test_pem_with_x5t"
+            }
+          })
+          local p_key_body = assert.res_status(201, p_key)
+          assert(cjson.decode(p_key_body))
+        end)
+
+        it("create jwk key with x5t", function()
+          local jwk_pub, jwk_priv = helpers.generate_keys("JWK")
+          local jwk = merge(cjson.decode(jwk_pub), cjson.decode(jwk_priv))
+          jwk.x5t = "test_jwk_with_x5t"
+          local j_key = helpers.admin_client():post("/keys", {
+            headers = HEADERS,
+            body = {
+              name = "jwk with x5t",
+              set = { id = test_key_set.id },
+              jwk = cjson.encode(jwk),
+              kid = jwk.kid,
+              x5t = jwk.x5t
+            }
+          })
+          local key_body = assert.res_status(201, j_key)
+          assert(cjson.decode(key_body))
         end)
 
         it("create invalid JWK", function()
@@ -136,7 +172,7 @@ for _, strategy in helpers.all_strategies() do
           local _res = client:get("/keys")
           local _body = assert.res_status(200, _res)
           local _json = cjson.decode(_body)
-          assert.equal(4, #_json.data)
+          assert.equal(6, #_json.data)
         end)
       end)
 
@@ -189,7 +225,7 @@ for _, strategy in helpers.all_strategies() do
           local res_ = client:get("/keys")
           local body_ = assert.res_status(200, res_)
           local json_ = cjson.decode(body_)
-          assert.equal(4, #json_.data)
+          assert.equal(6, #json_.data)
 
           local d_res = client:delete("/key-sets/"..json.data[1].id)
           assert.res_status(204, d_res)

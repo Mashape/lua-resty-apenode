@@ -3,7 +3,9 @@ local helpers = require ("spec.helpers")
 local declarative = require("kong.db.declarative")
 local inflate_gzip = require("kong.tools.gzip").inflate_gzip
 local cjson_decode = require("cjson.safe").decode
+local cjson_encode = require("cjson.safe").encode
 local ssl_fixtures = require ("spec.fixtures.ssl")
+local merge = kong.table.merge
 
 local function reset_fields()
   compat._set_removed_fields(require("kong.clustering.compat.removed_fields"))
@@ -419,6 +421,7 @@ describe("kong.clustering.compat", function()
         "plugins",
         "consumers",
         "upstreams",
+        "keys",
       })
       _G.kong.db = db
 
@@ -437,10 +440,34 @@ describe("kong.clustering.compat", function()
         cert  = ssl_fixtures.cert_ca,
       }
 
+      local jwk_pub, jwk_priv = helpers.generate_keys("JWK")
+      local pem_pub, pem_priv = helpers.generate_keys("PEM")
+      local jwk = merge(cjson_decode(jwk_pub), cjson_decode(jwk_priv))
+      jwk.x5t = "x5t1"
+
 
       assert(declarative.load_into_db({
         ca_certificates = { [ca_certificate_def.id] = ca_certificate_def },
         certificates = { [certificate_def.id] = certificate_def },
+        keys = {
+          key1 = {
+            id = "f0383152-a6b4-4351-983b-1844b14170c1",
+            kid = jwk.kid,
+            name = "key1",
+            x5t = jwk.x5t,
+            jwk = cjson_encode(jwk)
+          },
+          key2 = {
+            id = "f0383152-a6b4-4351-983b-1844b14170c2",
+            kid = "kid2",
+            name = "key2",
+            x5t = "x5t2",
+            pem = {
+              public_key = pem_pub,
+              private_key = pem_priv
+            }
+          }
+        },
         upstreams = {
           upstreams1 = {
             id = "01a2b3c4-d5e6-f7a8-b9c0-d1e2f3a4b5c6",
@@ -640,6 +667,15 @@ describe("kong.clustering.compat", function()
       assert.is_nil(assert(services[3]).ca_certificates)
     end)
 
+    it("key.x5t", function()
+      local has_update, result = compat.update_compatible_payload(config, "3.9.0", "test_")
+      assert.truthy(has_update)
+      result = cjson_decode(inflate_gzip(result)).config_table
+
+      local keys = assert(assert(assert(result).keys))
+      assert.is_nil(assert(keys[1]).x5t)
+      assert.is_nil(assert(keys[2]).x5t)
+    end)
   end)  -- describe
 
   describe("route entities compatible changes", function()

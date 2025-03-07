@@ -1,0 +1,4 @@
+message: | 
+  Added a new field `x5t` to the entity `keys`.
+type: feature
+scope: Core

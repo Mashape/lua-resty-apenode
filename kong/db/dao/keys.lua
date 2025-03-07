@@ -128,5 +128,26 @@ function keys:get_privkey(key)
   return _get_key(key, "private")
 end
 
+-- @x5t: the x5t of key to be searched
+-- @set_id: the id of the set the searched key belongs to
+-- @return the key entity
+function keys:select_by_x5t_set_id(x5t, set_id)
+  local x5t_type = type(x5t)
+  local set_id_type = type(set_id)
+  if x5t_type ~= "string" then
+    return nil, "parameter `x5t` must be of type string"
+  end
+  if set_id_type ~= "string" and set_id_type ~= "nil" then
+    return nil, "parameter `set_id` must be of type string or nil"
+  end
+
+  local key, err = self.strategy:select_by_x5t_set_id(x5t, set_id)
+  if not key then
+    return nil, err
+  end
+
+  return self:row_to_entity(key), nil
+end
+
 
 return keys
