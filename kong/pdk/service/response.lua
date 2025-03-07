@@ -36,86 +36,21 @@ local header_body_log = phase_checker.new(PHASES.response,
                                           PHASES.body_filter,
                                           PHASES.log)
 
-
-local attach_resp_headers_mt
-
+local clear_non_upstream_headers
 
 do
-  local resp_headers_orig_mt_index
-
-
-  local resp_headers_mt = {
-    __index = function(t, name)
-      if type(name) == "string" then
-        local var = fmt("upstream_http_%s", replace_dashes_lower(name))
-        if not ngx.var[var] then
-          return nil
-        end
+  -- pairs in a hot code path - although this hits an NYI and falls back to the
+  -- interpreter, it uses an optimized hand-written assembly form of loop on table
+  -- that does not use `next`
+  clear_non_upstream_headers = function (response_headers, err)
+    for header_name, _ in pairs(response_headers) do
+      local var = fmt("upstream_http_%s", replace_dashes_lower(header_name))
+      if not ngx.var[var] then
+        response_headers[header_name] = nil
       end
-
-      return resp_headers_orig_mt_index(t, name)
-    end,
-  }
-
-
-  attach_resp_headers_mt = function(response_headers, err)
-    if not resp_headers_orig_mt_index then
-      local mt = getmetatable(response_headers)
-      resp_headers_orig_mt_index = mt.__index
     end
-
-    setmetatable(response_headers, resp_headers_mt)
 
     return response_headers, err
-  end
-end
-
-
-local attach_buffered_headers_mt
-
-do
-  local EMPTY = {}
-
-  attach_buffered_headers_mt = function(response_headers, max_headers)
-    if not response_headers then
-      return EMPTY
-    end
-
-    return setmetatable({}, { __index = function(_, name)
-      if type(name) ~= "string" then
-        return nil
-      end
-
-      if response_headers[name] then
-        return response_headers[name]
-      end
-
-      name = lower(name)
-
-      if response_headers[name] then
-        return response_headers[name]
-      end
-
-      name = replace_dashes(name)
-
-      if response_headers[name] then
-        return response_headers[name]
-      end
-
-      local i = 1
-      for n, v in pairs(response_headers) do
-        if i > max_headers then
-          return nil
-        end
-
-        n = replace_dashes_lower(n)
-        if n == name then
-          return v
-        end
-
-        i = i + 1
-      end
-    end })
   end
 end
 
@@ -137,8 +72,8 @@ local function new(pdk, major_version)
   local MIN_HEADERS            = 1
   local MAX_HEADERS_DEFAULT    = 100
   local MAX_HEADERS            = 1000
-  local MAX_HEADERS_CONFIGURED
-
+  local MAX_HEADERS_CONFIGURED = pdk.configuration and pdk.configuration.lua_max_resp_headers
+                                  or MAX_HEADERS_DEFAULT
 
   ---
   -- Returns the HTTP status code of the response from the Service as a Lua number.
@@ -196,39 +131,27 @@ local function new(pdk, major_version)
   --   kong.log.inspect(headers.x_another[1])    -- "foo bar"
   --   kong.log.inspect(headers["X-Another"][2]) -- "baz"
   -- end
-  -- Note that this function returns a proxy table
-  -- which cannot be iterated with `pairs` or used as operand of `#`.
   function response.get_headers(max_headers)
     check_phase(header_body_log)
 
-    local buffered_headers = ngx.ctx.buffered_headers
+    if max_headers ~= nil and type(max_headers) ~= "number" then
+      error("max_headers must be a number or nil", 2)
 
-    if max_headers == nil then
-      if buffered_headers then
-        if not MAX_HEADERS_CONFIGURED then
-          MAX_HEADERS_CONFIGURED = pdk and pdk.configuration and pdk.configuration.lua_max_resp_headers
-        end
-        return attach_buffered_headers_mt(buffered_headers, MAX_HEADERS_CONFIGURED or MAX_HEADERS_DEFAULT)
-      end
-
-      return attach_resp_headers_mt(ngx.resp.get_headers())
-    end
-
-    if type(max_headers) ~= "number" then
-      error("max_headers must be a number", 2)
-
-    elseif max_headers < MIN_HEADERS then
+    elseif max_headers and max_headers < MIN_HEADERS then
       error("max_headers must be >= " .. MIN_HEADERS, 2)
 
-    elseif max_headers > MAX_HEADERS then
+    elseif max_headers and max_headers > MAX_HEADERS then
       error("max_headers must be <= " .. MAX_HEADERS, 2)
     end
 
-    if buffered_headers then
-      return attach_buffered_headers_mt(buffered_headers, max_headers)
+    local ctx = ngx.ctx
+    if ctx.buffered_proxying and ctx.buffered_headers then
+      -- XXX ensure metatable is the same as for non-buffered
+      return ctx.buffered_headers
     end
 
-    return attach_resp_headers_mt(ngx.resp.get_headers(max_headers))
+    -- we patch ngx.resp.get_headers to honor the max headers kong config
+    return clear_non_upstream_headers(ngx.resp.get_headers(max_headers))
   end
 
   ---
