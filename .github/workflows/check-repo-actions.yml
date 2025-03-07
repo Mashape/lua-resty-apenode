@@ -1,0 +1,57 @@
+name: Check Repo Actions Status
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  check_status:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Action Status
+        env:
+          GH_TOKEN: ${{ secrets.COMMUNITY_PRS_TOKEN }}
+        run: |
+          REPOS=$(yq e '.repos | join(" ")' .github/repos.yml)
+
+          processed_names=""
+          temp_file=$(mktemp)
+          
+          for repo in ${REPOS[@]}
+          do
+            branch=`curl -s https://api.github.com/repos/$repo | jq -r '.default_branch'`
+            sha=`curl -s -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ env.GH_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/$repo/commits|jq -r '.[0].sha'`
+            
+            echo -e "\n\033[1;37mChecking $repo ($branch: $sha) ...\033[0m"
+            curl -s -L \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ env.GH_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28"  \
+              "https://api.github.com/repos/$repo/actions/runs?head_branch=$branch&head_sha=$sha" \
+              |jq -r '.workflow_runs|map({name: .name, status: .status, created_at: .created_at, conclusion: .conclusion}) | sort_by(.created_at) | reverse' \
+              |jq -r '.[]| "\(.name),\(.status),\(.conclusion),\(.created_at)"' \
+              | while IFS=',' read -r name status conclusion create_at;
+              do
+                if [[ ! "$processed_names" =~ "$repo-$name" ]]; then
+                  processed_names+=" $repo-$name"
+                  if [[ "$status" != "completed" || "$conclusion" != "success" ]]; then
+                    printf "[%s| %s] (Create At: %s): %s\r\n" "$repo" "$name" "$create_at" "$status" >> $temp_file
+                    echo -e "\033[0;31m$repo: [$name] (created at: $create_at) status: [$status] conclusion: [$conclusion]\033[0m"
+                  else
+                    echo -e "\033[0;32m$repo: [$name] (created at: $create_at) status: [$status] conclusion: [$conclusion]\033[0m"
+                  fi
+                fi
+              done
+          done
+          if [ -s "$temp_file" ]; then
+            exit 1
+          fi
