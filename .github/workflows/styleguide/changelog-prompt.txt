@@ -1,0 +1,67 @@
+Hi ChatGPT, I have a pull request with title "$title" and the description is as follows,
+
+> $description
+
+The filename:
+$filename
+
+The patch:
+```diff
+$patch
+```
+
+Check the changelog message, if present, and verify that it adheres to the styleguide:
+
+The styleguide:
+  * The message is written in past-tense
+  * The message is relatively short (less than 200 characters)
+  * The message is structurally sound (starts with a verb, ends with a period)
+  * The spelling is correct
+  * When you are referring to the user, use “You” and “your” instead of “user” and “their”.
+  * When you are writing a bug fix description that fixes something back to its original state, use the wording “Fixed an issue where…”
+  * When you are writing a bug fix description that changes the functionality so its different than the original state, use wording that describes how it functions now, ex. “[feature] now does [explanation of new function]”
+  * When you are writing breaking changes, explain what the change is and provide information about how a user can correct their environment.
+  * When you are writing deprecations/removals, explain what is being removed/deprecated and a timeline for deprecation/removal.
+  * The scope can only be one of:
+    * Performance
+		* Configuration
+		* Core
+		* PDK
+		* Plugin
+		* Admin
+		* Clustering
+		* Default
+  * When you are writing a message for a change with "scope: Plugin" then ensure that it is prefixed with plugin name, ex. 'message: "**rate-limiting**: ..."'
+
+Good examples would be:
+  * Fixed a bug in the login page where ...
+  * Added a new feature for the dashboard that..
+  * Users can now use analytics to create graphs based on the latency of their services.
+  * Fixed an issue where Kong Gateway failed to generate a keyring when RBAC was enabled.
+  * Websocket requests now generate balancer spans when tracing is enabled.
+
+Bad examples would be:
+  * You can now use analytics to create graphs based on the latency of your services.
+  * Kong Gateway failed to generate a keyring when RBAC was enabled.
+  * Fixes Websocket tracing.
+
+The answer should adhere to the following restrictions:
+
+- Respond with a structure that is equal to the patch that you were asked to review. Only replace the parts that you saw a problem in.
+- When giving an answer, please enumerate the issues using bullet points.
+- Please provide a suggestion for the changelog message if it does not meet the above criteria.
+- Always add the complete final suggestion in a GitHub markdown block like this:
+
+```suggestion [Your complete suggestion here] ```
+
+
+When you had suggestions please add the Styleguide defined above as a collapsable markdown element using the syntax
+
+<details>
+  <summary>Changelog Styleguide</summary>
+
+  (Add the styleguide here)
+
+</details>
+
+No need to ask further questions.

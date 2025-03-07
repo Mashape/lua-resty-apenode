@@ -1,0 +1,33 @@
+name: Changelog Review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    # only run when these files have changed
+    paths:
+      - 'changelog/**/**.yml'
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          ref: ${{github.event.pull_request.head.ref}}
+          submodules: false
+      - uses: jschmid1/chatgpt-action@3e0350fcecd16c2dacd3e26f753abc4078b8a012
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          debug: false
+          action: review
+          path_filters: "changelog/**/**.yml"
+          review_comment_lgtm: false
+          custom_prompt_path: ".github/workflows/styleguide/changelog-prompt.txt"
