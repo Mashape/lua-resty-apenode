@@ -1,0 +1,4 @@
+message: |
+  Fixed an issue where declarative flattened errors missed useful info when fields were absent.
+type: bugfix
+scope: Core
