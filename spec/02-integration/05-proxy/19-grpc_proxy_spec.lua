@@ -1,6 +1,7 @@
 local helpers = require "spec.helpers"
 local cjson = require "cjson"
 local pl_path = require "pl.path"
+local ssl_fixtures = require "spec.fixtures.ssl"
 
 local FILE_LOG_PATH = os.tmpname()
 
@@ -8,7 +9,6 @@ local FILE_LOG_PATH = os.tmpname()
 local function reload_router(flavor)
   helpers = require("spec.internal.module").reload_helpers(flavor)
 end
-
 
 -- TODO: remove it when we confirm it is not needed
 local function gen_route(flavor, r)
@@ -18,7 +18,6 @@ end
 
 for _, flavor in ipairs({ "traditional", "traditional_compatible", "expressions" }) do
 for _, strategy in helpers.each_strategy() do
-
   describe("gRPC Proxying [#" .. strategy .. ", flavor = " .. flavor .. "]", function()
     local proxy_client_grpc
     local proxy_client_grpcs
@@ -26,6 +25,8 @@ for _, strategy in helpers.each_strategy() do
     local proxy_client_ssl
     local proxy_client_h2c
     local proxy_client_h2
+    local ca_certificate
+    local mock_grpcs_service
 
     reload_router(flavor)
 
@@ -33,6 +34,7 @@ for _, strategy in helpers.each_strategy() do
       local bp = helpers.get_db_utils(strategy, {
         "routes",
         "services",
+        "ca_certificates",
       })
 
       local service1 = assert(bp.services:insert {
@@ -48,6 +50,11 @@ for _, strategy in helpers.each_strategy() do
       local mock_grpc_service = assert(bp.services:insert {
         name = "mock_grpc_service",
         url = "grpc://localhost:8765",
+      })
+
+      mock_grpcs_service = assert(bp.services:insert {
+        name = "mock_grpcs_service",
+        url = helpers.grpcbin_ssl_url,
       })
 
       local mock_grpc_service_retry = assert(bp.services:insert {
@@ -96,6 +103,13 @@ for _, strategy in helpers.each_strategy() do
       })))
 
       assert(bp.routes:insert(gen_route(flavor, {
+        protocols = { "grpcs" },
+        hosts = { "example.com" },
+        service = mock_grpcs_service,
+        preserve_host = false,
+      })))
+
+      assert(bp.routes:insert(gen_route(flavor, {
         protocols = { "grpc" },
         hosts = { "grpc_authority_retry.example" },
         service = mock_grpc_service_retry,
@@ -110,6 +124,10 @@ for _, strategy in helpers.each_strategy() do
           reopen = true,
         },
       })
+
+      ca_certificate = assert(bp.ca_certificates:insert({
+        cert = ssl_fixtures.cert_ca2,
+      }))
 
       local fixtures = {
         http_mock = {}
@@ -379,6 +397,85 @@ for _, strategy in helpers.each_strategy() do
         assert.matches("Message: gRPC request matched gRPCs route", resp, nil, true)
       end)
     end)
+
+    if strategy ~= "off" then
+      describe("grpcs with tls", function()
+        local function proxy_grpcs_with_ca_certificate()
+          local ok, resp = assert(proxy_client_grpcs({
+            service = "hello.HelloService.SayHello",
+            body = {
+              greeting = "world!"
+            },
+            opts = {
+              ["-authority"] = "example.com",
+            }
+          }))
+          assert.truthy(ok)
+          assert.truthy(resp)
+        end
+
+        it("proxies grpcs without ca_certificate", function()
+          proxy_grpcs_with_ca_certificate()
+        end)
+
+        describe("tls_verify", function()
+          it("default is off", function()
+            local admin_client = helpers.admin_client()
+            local res = assert(admin_client:patch("/services/" .. mock_grpcs_service.id, {
+              body = {
+                ca_certificates = { ca_certificate.id, },
+              },
+              headers = { ["Content-Type"] = "application/json" },
+            }))
+
+            assert.res_status(200, res)
+            proxy_grpcs_with_ca_certificate()
+          end)
+
+          it("turn it on", function()
+            local admin_client = helpers.admin_client()
+            local res = assert(admin_client:patch("/services/" .. mock_grpcs_service.id, {
+              body = {
+                tls_verify = true,
+                ca_certificates = { ca_certificate.id, },
+              },
+              headers = { ["Content-Type"] = "application/json" },
+            }))
+
+            assert.res_status(200, res)
+            proxy_grpcs_with_ca_certificate()
+          end)
+        end)
+
+        describe("tls_verify_depth", function()
+          lazy_setup(function()
+            local admin_client = helpers.admin_client()
+            local res = assert(admin_client:patch("/services/" .. mock_grpcs_service.id, {
+              body = {
+                tls_verify = true,
+                ca_certificates = { ca_certificate.id, },
+              },
+              headers = { ["Content-Type"] = "application/json" },
+            }))
+
+            assert.res_status(200, res)
+          end)
+
+          it("request is allowed through if depth limit is sufficient", function()
+            local admin_client = helpers.admin_client()
+            local res = assert(admin_client:patch("/services/" .. mock_grpcs_service.id, {
+              body = {
+                tls_verify_depth = 1,
+              },
+              headers = { ["Content-Type"] = "application/json" },
+            }))
+
+            assert.res_status(200, res)
+            proxy_grpcs_with_ca_certificate()
+          end)
+        end)
+      end)
+    end
   end)
 end
 end   -- flavor
