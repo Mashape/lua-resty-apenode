@@ -1,5 +1,6 @@
 local resty_mlcache = require "kong.resty.mlcache"
 local buffer = require "string.buffer"
+local resty_counter = require "resty.counter"
 
 
 local encode = buffer.encode
@@ -23,6 +24,8 @@ local NO_TTL_FLAG = resty_mlcache.NO_TTL_FLAG
 
 
 local CHANNEL_NAME = "mlcache"
+local DEFAULT_COUNTER_SYNC_INTERVAL = 5
+local DEFAULT_COUNTER_SHM_NAME = "kong"
 
 
 --[[
@@ -91,6 +94,14 @@ function _M.new(opts)
     error("opts.invalidation_channel must be a string", 2)
   end
 
+  if opts.stats_counter_shm_name and type(opts.stats_counter_shm_name) ~= "string" then
+    error("opts.stats_counter_shm_name must be a string", 2)
+  end
+
+  if opts.stats_counter_sync_interval and type(opts.stats_counter_sync_interval) ~= "number" then
+    error("opts.stats_counter_sync_interval must be a number", 2)
+  end
+
   local shm_name = opts.shm_name
   if not shared[shm_name] then
     log(ERR, "shared dictionary ", shm_name, " not found")
@@ -157,6 +168,35 @@ function _M.new(opts)
                 "channel: " .. err
   end
 
+  local stats_counter do
+    local function generate_counter_keys(shm, op, stat)
+      return "cache_stat_cnt" .. ":" .. shm .. ":" .. op .. ":" .. stat
+    end
+
+    local stats_counter_shm_name = opts.stats_counter_shm_name or DEFAULT_COUNTER_SHM_NAME
+    local stats_counter_sync_interval = opts.stats_counter_sync_interval or DEFAULT_COUNTER_SYNC_INTERVAL
+    local err
+    stats_counter, err = resty_counter.new(
+      stats_counter_shm_name, stats_counter_sync_interval)
+    if err then
+      return nil, "failed to create stats counter instance: " .. err
+    end
+
+    self.stats_counter = stats_counter
+    self._stats_counter_keys = {
+      get = {
+        errors = generate_counter_keys(shm_name, "get", "errors"),
+        hit_lvl = {
+          [1] = generate_counter_keys(shm_name, "get", "hits"),
+          [2] = generate_counter_keys(shm_name, "get", "hits"),
+          [3] = generate_counter_keys(shm_name, "get", "misses"),
+          [4] = generate_counter_keys(shm_name, "get", "resurrects"),
+          [-1] = generate_counter_keys(shm_name, "get", "negatives"),
+        },
+      }
+    }
+  end
+
   _init[shm_name] = true
 
   return setmetatable(self, mt)
@@ -170,9 +210,11 @@ function _M:get(key, opts, cb, ...)
 
   local v, err, hit_lvl = self.mlcache:get(key, opts, cb, ...)
   if err then
+    self.stats_counter:incr(self._stats_counter_keys.get.errors, 1)
     return nil, "failed to get from node cache: " .. err
   end
 
+  self.stats_counter:incr(self._stats_counter_keys.get.hit_lvl[hit_lvl], 1)
   return v, nil, hit_lvl
 end
 
@@ -271,6 +313,24 @@ function _M:purge()
   if not ok then
     log(ERR, "failed to purge cache: ", err)
   end
+end
+
+
+function _M:stats()
+  self.stats_counter:sync()
+  local res = {}
+  for _, vals in pairs(self._stats_counter_keys) do
+    if type(vals) == "string" then
+      res[vals], _ = self.stats_counter:get(vals)
+
+    else
+      for _, counter_key in pairs(vals) do
+        res[counter_key], _ = self.stats_counter:get(counter_key)
+      end
+    end
+  end
+
+  return res
 end
 
 
