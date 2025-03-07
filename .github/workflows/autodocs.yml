@@ -12,73 +12,20 @@ on:
       target_branch:
         description: "Target Branch in kong/docs.konghq.com (e.g. release/2.4)"
         required: true
-      force_build:
-        description: "Ignore the build cache and build dependencies from scratch"
-        type: boolean
-        default: false
+
+env:
+  BUILD_ROOT: ${{ github.workspace }}/bazel-bin/build
+
 jobs:
   build:
-    name: Build dependencies
-    runs-on: ubuntu-22.04
+    uses: ./.github/workflows/build.yml
+    with:
+      relative-build-root: bazel-bin/build
 
-    env:
-      DOWNLOAD_ROOT: $HOME/download-root
-
-    steps:
-      - name: Set environment variables
-        run: |
-          echo "INSTALL_ROOT=$HOME/install-root" >> $GITHUB_ENV
-          echo "DOWNLOAD_ROOT=$HOME/download-root" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$INSTALL_ROOT/openssl/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
-      - name: Checkout Kong source code
-        uses: actions/checkout@v4
-
-      - name: Lookup build cache
-        uses: actions/cache@v4
-        id: cache-deps
-        with:
-          path: ${{ env.INSTALL_ROOT }}
-          key: ${{ hashFiles('.ci/setup_env_github.sh') }}-${{ hashFiles('.requirements') }}-${{ hashFiles('kong-*.rockspec') }}
-
-      - name: Checkout kong-build-tools
-        if: steps.cache-deps.outputs.cache-hit != 'true' || github.event.inputs.force_build == 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: Kong/kong-build-tools
-          path: kong-build-tools
-          ref: master
-
-      - name: Checkout go-pluginserver
-        if: steps.cache-deps.outputs.cache-hit != 'true' || github.event.inputs.force_build == 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: Kong/go-pluginserver
-          path: go-pluginserver
-
-      - name: Add to Path
-        if: steps.cache-deps.outputs.cache-hit != 'true' || github.event.inputs.force_build == 'true'
-        run: echo "$INSTALL_ROOT/openssl/bin:$INSTALL_ROOT/openresty/nginx/sbin:$INSTALL_ROOT/openresty/bin:$INSTALL_ROOT/luarocks/bin:$GITHUB_WORKSPACE/kong-build-tools/openresty-build-tools" >> $GITHUB_PATH
-
-      - name: Install packages
-        if: steps.cache-deps.outputs.cache-hit != 'true' || github.event.inputs.force_build == 'true'
-        run: sudo apt update && sudo apt install libyaml-dev valgrind
-
-      - name: Build Kong dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true' || github.event.inputs.force_build == 'true'
-        run: |
-          source .ci/setup_env_github.sh
-          make dev
   autodoc:
     runs-on: ubuntu-22.04
     needs: [build]
     steps:
-      - name: Set environment variables
-        run: |
-          echo "INSTALL_ROOT=$HOME/install-root" >> $GITHUB_ENV
-          echo "DOWNLOAD_ROOT=$HOME/download-root" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$INSTALL_ROOT/openssl/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
       - name: Checkout Kong source code
         uses: actions/checkout@v4
         with:
@@ -97,16 +44,13 @@ jobs:
         uses: actions/cache@v4
         id: cache-deps
         with:
-          path: ${{ env.INSTALL_ROOT }}
-          key: ${{ hashFiles('kong/.ci/setup_env_github.sh') }}-${{ hashFiles('kong/.requirements') }}-${{ hashFiles('kong/kong-*.rockspec') }}
-
-      - name: Add to Path
-        run: echo "$INSTALL_ROOT/openssl/bin:$INSTALL_ROOT/openresty/nginx/sbin:$INSTALL_ROOT/openresty/bin:$INSTALL_ROOT/luarocks/bin:$GITHUB_WORKSPACE/kong-build-tools/openresty-build-tools:$INSTALL_ROOT/go-pluginserver" >> $GITHUB_PATH
+          path: ${{ env.BUILD_ROOT }}
+          key: ${{ needs.build.outputs.cache-key }}
 
       - name: Run Autodocs
         run: |
           cd kong
-          eval `luarocks path`
+          source ${{ env.BUILD_ROOT }}/kong-dev-venv.sh
           scripts/autodoc ../docs.konghq.com ${{ github.event.inputs.version }}
 
       - name: Generate branch name
