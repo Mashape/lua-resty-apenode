@@ -257,7 +257,7 @@ describe("Plugin: statsd (schema)", function()
       workspace_identifier_default = "invalid type"
     }, statsd_schema)
     assert.not_nil(err)
-    assert.equal("expected one of: consumer_id, custom_id, username", err.config.consumer_identifier_default)
+    assert.equal("expected one of: consumer_id, custom_id, username, credential", err.config.consumer_identifier_default)
     assert.equal("expected one of: service_id, service_name, service_host, service_name_or_host", err.config.service_identifier_default)
     assert.equal("expected one of: workspace_id, workspace_name", err.config.workspace_identifier_default)
   end)

@@ -54,6 +54,7 @@ for _, strategy in helpers.each_strategy() do
     local proxy_client
     local proxy_client_grpc
     local shdict_count
+    local cred
 
     lazy_setup(function()
       local bp = helpers.get_db_utils(strategy, {
@@ -69,7 +70,7 @@ for _, strategy in helpers.each_strategy() do
         custom_id = "robert",
       }
 
-      bp.keyauth_credentials:insert {
+      cred = bp.keyauth_credentials:insert {
         key      = "kong",
         consumer = { id = consumer.id },
       }
@@ -682,6 +683,23 @@ for _, strategy in helpers.each_strategy() do
             },
           },
           tag_style      = "signalfx",
+        },
+      }
+
+      bp.key_auth_plugins:insert { route = { id = routes[39].id } }
+
+      bp.statsd_plugins:insert {
+        route      = { id = routes[39].id },
+        config     = {
+          host     = "127.0.0.1",
+          port     = UDP_PORT,
+          metrics  = {
+            {
+              name                = "unique_users",
+              stat_type           = "set",
+              consumer_identifier = "credential",
+            }
+          },
         },
       }
 
@@ -1450,6 +1468,24 @@ for _, strategy in helpers.each_strategy() do
         assert(ok, res)
         assert(res, err)
         assert.contains("^kong.service.statsd14.user.uniques:" .. uuid_pattern .. "|s", res, true)
+      end)
+
+      it("consumer by credential", function()
+        local metrics_count = expected_metrics_count(1)
+        local thread = helpers.udp_server(UDP_PORT, metrics_count, 2)
+        local response = assert(proxy_client:send {
+          method  = "GET",
+          path    = "/request?apikey=kong",
+          headers = {
+            host  = "logging39.test"
+          }
+        })
+        assert.res_status(200, response)
+
+        local ok, res, err = thread:join()
+        assert(ok, res)
+        assert(res, err)
+        assert.contains(fmt("kong.service.statsd39.user.uniques:%s|s", cred.id), res)
       end)
 
       it("status_count_per_user_per_route", function()

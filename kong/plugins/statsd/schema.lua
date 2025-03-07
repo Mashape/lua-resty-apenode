@@ -17,7 +17,7 @@ local STAT_TYPES = {
 
 
 local CONSUMER_IDENTIFIERS = {
-  "consumer_id", "custom_id", "username",
+  "consumer_id", "custom_id", "username", "credential"
 }
 
 local SERVICE_IDENTIFIERS = {
