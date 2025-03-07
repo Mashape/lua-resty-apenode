@@ -595,6 +595,7 @@ do
 
       assert.res_status(200, res)
       assert.same("Miss", res.headers["X-Cache-Status"])
+
       --local cache_key = res.headers["X-Cache-Key"]
 
       -- wait until the underlying strategy converges
@@ -610,6 +611,17 @@ do
 
       assert.res_status(200, res)
       assert.same("Hit", res.headers["X-Cache-Status"])
+
+      local res = assert(client:get("/cache/2", {
+        headers = {
+          host = "route-7.test",
+          ["Cache-Control"] = "no-cache",
+        }
+      }))
+
+      assert.res_status(200, res)
+      assert.same("Bypass", res.headers["X-Cache-Status"])
+      assert.is_not_nil(res.headers["X-Cache-Key"])
 
       -- if strategy is local, it's enough to simply use a sleep
       if strategies.LOCAL_DATA_STRATEGIES[policy] then
