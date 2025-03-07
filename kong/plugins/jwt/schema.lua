@@ -30,6 +30,11 @@ return {
                 type = "string",
                 one_of = { "exp", "nbf" },
           }, }, },
+          { headers_to_set = {
+            type = "set",
+            elements = {
+              type = "string"
+          }, }, },
           { anonymous = { description = "An optional string (consumer UUID or username) value to use as an “anonymous” consumer if authentication fails.", type = "string" }, },
           { run_on_preflight = { description = "A boolean value that indicates whether the plugin should run (and try to authenticate) on OPTIONS preflight requests. If set to false, then OPTIONS requests will always be allowed.", type = "boolean", required = true, default = true }, },
           { maximum_expiration = {
