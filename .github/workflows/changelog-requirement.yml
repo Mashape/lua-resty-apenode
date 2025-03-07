@@ -25,11 +25,11 @@ jobs:
         with:
           files_yaml: |
             changelogs:
-              - 'changelog/unreleased/**/*.yml'
+              - 'changelog/unreleased/*/*.yml'
             upper_case:
               - 'CHANGELOG/**'
             numbered:
-              - 'changelog/unreleased/**/[0-9]+.yml'
+              - 'changelog/unreleased/*/[0-9]+.yml'
 
       - name: Check changelog existence
         if: steps.changelog-list.outputs.changelogs_any_changed == 'false'
