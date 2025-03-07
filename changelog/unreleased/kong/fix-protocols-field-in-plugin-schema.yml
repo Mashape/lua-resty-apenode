@@ -1,0 +1,3 @@
+message: change the protocols field in the schema of some plugins from all protocols to http protocol
+scope: Plugin
+type: bugfix

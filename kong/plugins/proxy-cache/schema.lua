@@ -17,7 +17,7 @@ end
 return {
   name = "proxy-cache",
   fields = {
-    { protocols = typedefs.protocols },
+    { protocols = typedefs.protocols_http },
     { config = {
         type = "record",
         fields = {
