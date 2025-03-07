@@ -99,6 +99,18 @@ describe("Plugin: datadog (log)", function()
           paths = { "/serviceless" },
           no_service = true,
         }
+        
+        local route10 = bp.routes:insert {
+          name    = "kong-sample_route",
+          hosts   = { "datadog10.test" },
+          service = bp.services:insert { name = "dd10" }
+        }
+        
+        local route11 = bp.routes:insert {
+          name    = "kong-sample_route.11",
+          hosts   = { "datadog11.test" },
+          service = bp.services:insert { name = "dd11" }
+        }
 
         bp.plugins:insert {
           name     = "key-auth",
@@ -261,6 +273,35 @@ describe("Plugin: datadog (log)", function()
             status_code = 200,
             message     = "OK",
           }
+        }
+
+        bp.plugins:insert {
+          name     = "key-auth",
+          route = { id = route10.id },
+        }
+
+        bp.plugins:insert {
+          name     = "datadog",
+          route = { id = route10.id },
+          config   = {
+            host   = "127.0.0.1",
+            port   = 9999,
+          },
+        }
+
+        bp.plugins:insert {
+          name     = "key-auth",
+          route = { id = route11.id },
+        }
+
+        bp.plugins:insert {
+          name     = "datadog",
+          route = { id = route11.id },
+          config           = {
+            host           = "127.0.0.1",
+            port           = 9999,
+            route_name_tag = "kong_route_name_tag",
+          },
         }
 
         assert(helpers.start_kong({
@@ -526,6 +567,54 @@ describe("Plugin: datadog (log)", function()
         local ok, gauges = thread:join()
         assert.True(ok)
         assert.equal(DEFAULT_METRICS_COUNT, #gauges)
+      end)
+
+      it("logs metrics with route name over UDP", function()
+        local thread = helpers.udp_server(9999, DEFAULT_METRICS_COUNT)
+
+        local res = assert(proxy_client:send {
+          method  = "GET",
+          path    = "/status/200?apikey=kong",
+          headers = {
+            ["Host"] = "datadog10.test"
+          }
+        })
+        assert.res_status(200, res)
+
+        local ok, gauges = thread:join()
+
+        assert.True(ok)
+        assert.equal(DEFAULT_METRICS_COUNT, #gauges)
+        assert.contains("kong.request.count:1|c|#name:dd10,status:200,route:kong-sample_route,consumer:bar,app:kong" , gauges)
+        assert.contains("kong.latency:%d*|ms|#name:dd10,status:200,route:kong-sample_route,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.request.size:%d*|ms|#name:dd10,status:200,route:kong-sample_route,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.response.size:%d*|ms|#name:dd10,status:200,route:kong-sample_route,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.upstream_latency:%d*|ms|#name:dd10,status:200,route:kong-sample_route,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.kong_latency:%d*|ms|#name:dd10,status:200,route:kong-sample_route,consumer:bar,app:kong", gauges, true)
+      end)
+
+      it("logs metrics with different route name tag over UDP", function()
+        local thread = helpers.udp_server(9999, DEFAULT_METRICS_COUNT)
+
+        local res = assert(proxy_client:send {
+          method  = "GET",
+          path    = "/status/200?apikey=kong",
+          headers = {
+            ["Host"] = "datadog11.test"
+          }
+        })
+        assert.res_status(200, res)
+
+        local ok, gauges = thread:join()
+
+        assert.True(ok)
+        assert.equal(DEFAULT_METRICS_COUNT, #gauges)
+        assert.contains("kong.request.count:1|c|#name:dd11,status:200,kong_route_name_tag:kong-sample_route_11,consumer:bar,app:kong" , gauges)
+        assert.contains("kong.latency:%d+|ms|#name:dd11,status:200,kong_route_name_tag:kong-sample_route_11,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.request.size:%d+|ms|#name:dd11,status:200,kong_route_name_tag:kong-sample_route_11,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.response.size:%d+|ms|#name:dd11,status:200,kong_route_name_tag:kong-sample_route_11,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.upstream_latency:%d+|ms|#name:dd11,status:200,kong_route_name_tag:kong-sample_route_11,consumer:bar,app:kong", gauges, true)
+        assert.contains("kong.kong_latency:%d*|ms|#name:dd11,status:200,kong_route_name_tag:kong-sample_route_11,consumer:bar,app:kong", gauges, true)
       end)
 
       it("datadog plugin is triggered for serviceless routes", function()

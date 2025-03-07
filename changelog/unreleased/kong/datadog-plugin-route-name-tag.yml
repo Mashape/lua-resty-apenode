@@ -1,0 +1,5 @@
+message: |
+  Added the route name to a built-in tag in the Datadog plugin, 
+  to each of the output metrics.
+type: feature
+scope: Plugin
